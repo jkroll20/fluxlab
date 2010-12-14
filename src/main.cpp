@@ -12,7 +12,7 @@ using namespace std;
 
 
 fbo<2, true, GL_RGB, false> gFBO;
-int gScreenWidth= 800, gScreenHeight= 600;
+int gScreenWidth= 1024, gScreenHeight= 600;
 float gZoom= 1.0;
 
 class CgState
@@ -178,7 +178,7 @@ class fluxCgWindow
 void setVideoMode(int w, int h)
 {
 	SDL_Init(SDL_INIT_VIDEO);
-	SDL_SetVideoMode(w, h, 0, SDL_OPENGL|SDL_RESIZABLE);
+	SDL_SetVideoMode(w, h, 0, SDL_OPENGL|SDL_RESIZABLE); //|SDL_FULLSCREEN);
 	SDL_ShowCursor(false);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -223,6 +223,7 @@ void flux_tick()
 	double t= SDL_GetTicks()*0.001;
 	double f= (t-lastUpdate)*5;
 	lastUpdate= t;
+	if(x0==x1) x0= 0, x1= gScreenWidth, y0= 0, y1= gScreenHeight;
 	x0+= (rc.x-x0)*f; x1+= (rc.rgt-x1)*f;
 	y0+= (rc.y-y0)*f; y1+= (rc.btm-y1)*f;
 
@@ -318,6 +319,7 @@ int main()
 				case SDL_VIDEORESIZE:
 					printf("window resized\n");
 					setVideoMode(ev.resize.w, ev.resize.h);
+					gScreenWidth= ev.resize.w; gScreenHeight= ev.resize.h;
 					break;
 			}
 		}
@@ -331,5 +333,6 @@ int main()
 		SDL_Delay(delay);
 	}
 
+	SDL_Quit();
     return 0;
 }
