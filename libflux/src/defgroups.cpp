@@ -1616,10 +1616,12 @@ prop_t btn_cbprops(prop_t arg, primitive *self, int type, const char *name, int 
 	    text_settext(txt->id, (char *)value);
 	    wnd_setwidth( wnd_walk(self->id, CHILD, NEXT, NEXT, NEXT, SELF), font_gettextwidth((font*)wnd_getprop(self->id, "font"), (char*)value) );
 
+#if 0
 	    rect rc;
 	    prim_get_abspos(self, &rc, true);
 	    redraw_rect(&rc);
 	    update_rect(&rc);
+#endif
       	  }
       }
       else if(!strcmp(name, "on_click"))

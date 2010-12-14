@@ -13,6 +13,7 @@ using namespace std;
 
 fbo<2, true, GL_RGB, false> gFBO;
 int gScreenWidth= 800, gScreenHeight= 600;
+float gZoom= 1.0;
 
 class CgState
 {
@@ -24,16 +25,16 @@ class CgState
 		{
 			if(initialized) return true;
 
-			myCgContext = cgCreateContext();
+			myCgContext= cgCreateContext();
 			if(!checkForCgError("creating context")) return false;
-			cgGLSetDebugMode(CG_FALSE);
+			cgGLSetDebugMode(CG_TRUE);
 			cgSetParameterSettingMode(myCgContext, CG_DEFERRED_PARAMETER_SETTING);
 
-			myCgVertexProfile = cgGLGetLatestProfile(CG_GL_VERTEX);
+			myCgVertexProfile= cgGLGetLatestProfile(CG_GL_VERTEX);
 			cgGLSetOptimalOptions(myCgVertexProfile);
 			if(!checkForCgError("selecting vertex profile")) return false;
 
-			myCgFragmentProfile = cgGLGetLatestProfile(CG_GL_FRAGMENT);
+			myCgFragmentProfile= cgGLGetLatestProfile(CG_GL_FRAGMENT);
 			cgGLSetOptimalOptions(myCgFragmentProfile);
 			if(!checkForCgError("selecting fragment profile")) return false;
 
@@ -95,10 +96,23 @@ class CgState
 class fluxCgWindow
 {
 	public:
-		fluxCgWindow(dword fluxHandleToAttachTo): programLoaded(false)
+		fluxCgWindow(dword fluxHandleToAttachTo)
+			: programLoaded(false)
 		{
 			wnd_set_paint_callback(fluxHandleToAttachTo, paintCB, (prop_t)this);
 			fluxHandle= fluxHandleToAttachTo;
+		}
+
+		fluxCgWindow(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+			: programLoaded(false)
+		{
+			fluxHandle= create_rect(parent, x,y, width,height, TRANSL_2, alignment);
+			wnd_set_paint_callback(fluxHandle, paintCB, (prop_t)this);
+		}
+
+		dword getFluxHandle()
+		{
+			return fluxHandle;
 		}
 
 		bool loadProgram(const char *filename)
@@ -186,13 +200,32 @@ void setVideoMode(int w, int h)
 
 void flux_tick()
 {
+	static float x0, y0, x1, y1;
+	static double lastUpdate;
 	aq_exec();
 	run_timers();
 
 	gFBO.enable();
 	gFBO.set_ortho_mode();
-
 	gFBO.select_framebuffer_texture(0);
+
+	rect rc= viewport;
+	rc.x/= gZoom; rc.rgt/= gZoom;
+	rc.y/= gZoom; rc.btm/= gZoom;
+	int w= rc.rgt-rc.x, h= rc.btm-rc.y;
+	rc.x-= w/2-mouse.x; rc.rgt-= w/2-mouse.x;
+	rc.y-= h/2-mouse.y; rc.btm-= h/2-mouse.y;
+	if(rc.x<0) rc.x= 0, rc.rgt= rc.x+w;
+	if(rc.y<0) rc.y= 0, rc.btm= rc.y+h;
+	if(rc.rgt>gScreenWidth) rc.rgt= gScreenWidth, rc.x= rc.rgt-w;
+	if(rc.btm>gScreenHeight) rc.btm= gScreenHeight, rc.y= rc.btm-h;
+
+	double t= SDL_GetTicks()*0.001;
+	double f= (t-lastUpdate)*5;
+	lastUpdate= t;
+	x0+= (rc.x-x0)*f; x1+= (rc.rgt-x1)*f;
+	y0+= (rc.y-y0)*f; y1+= (rc.btm-y1)*f;
+
 	redraw_rect(&viewport);
 	redraw_cursor();
 	gFBO.disable();
@@ -204,10 +237,12 @@ void flux_tick()
 	glDisable(GL_DEPTH_TEST);
 	glColor3f(1,1,1);
 	glBegin(GL_QUADS);
-	glTexCoord2f(0,1); glVertex2f(0, 0);
-	glTexCoord2f(1,1); glVertex2f(viewport.rgt, 0);
-	glTexCoord2f(1,0); glVertex2f(viewport.rgt, viewport.btm);
-	glTexCoord2f(0,0); glVertex2f(0, viewport.btm);
+	double u0= double(x0)/gScreenWidth, v0= double(y0)/gScreenHeight,
+		   u1= double(x1)/gScreenWidth, v1= double(y1)/gScreenHeight;
+	glTexCoord2f(u0,v1); glVertex2f(0, 0);
+	glTexCoord2f(u1,v1); glVertex2f(viewport.rgt, 0);
+	glTexCoord2f(u1,v0); glVertex2f(viewport.rgt, viewport.btm);
+	glTexCoord2f(u0,v0); glVertex2f(0, viewport.btm);
 	glEnd();
 	glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
 
@@ -228,6 +263,10 @@ int main()
 	bool doQuit= false;
 
 	setVideoMode(gScreenWidth, gScreenHeight);
+
+		fluxCgWindow *cgWnd= new fluxCgWindow(0,0, 300,200);
+		cgWnd->loadProgram("cg/test.cg");
+		clone_frame("titleframe", cgWnd->getFluxHandle());
 
 	for(int i= 0; i<3; i++)
 	{
@@ -266,6 +305,9 @@ int main()
 					break;
 				case SDL_MOUSEBUTTONDOWN:
 					flux_mouse_button_event(SDLMouseButtonToFluxMouseButton(ev.button.button), ev.button.state);
+					if(ev.button.button==4) gZoom*= 1.1;
+					else if(ev.button.button==5) { gZoom*= 0.9; if(gZoom<1.15) gZoom= 1.0; }
+					else if(ev.button.button==2) gZoom= 1.0;
 					break;
 				case SDL_MOUSEBUTTONUP:
 					flux_mouse_button_event(SDLMouseButtonToFluxMouseButton(ev.button.button), ev.button.state);
