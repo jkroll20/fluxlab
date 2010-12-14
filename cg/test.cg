@@ -1,0 +1,9 @@
+
+float4 main(float3 wpos: WPOS,
+			float2 texpos: TEXCOORD0,
+			sampler2D tex: TEX0): COLOR
+{
+    float4 sinMix= float4(sin(wpos.x*wpos.y/10000), sin((wpos.x-wpos.y)/20), sin(wpos.x*wpos.y/20000+wpos.y/20), 1);
+    float4 dstColor= tex2D(tex, float2(texpos.x + sinMix.r*0.02, texpos.y + sinMix.g*0.02));
+    return dstColor+((sinMix*0.5+0.5)-dstColor)*0.5;
+}
