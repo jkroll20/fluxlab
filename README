@@ -1,1 +1,3 @@
 this is a little demo for flux, the pretty & lightweight cross-platform gui library. 
+
+you need the cg toolkit to build: http://developer.nvidia.com/object/cg_download.html
