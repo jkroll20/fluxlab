@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include <flux.h>
 #include <SDL/SDL.h>
 #define GL_GLEXT_PROTOTYPES
@@ -93,21 +94,28 @@ class CgState
 } gCgState;	// could be a singleton, but i can't be bothered for this demo
 
 
-class fluxCgWindow
+class fluxCgEffect
 {
 	public:
-		fluxCgWindow(dword fluxHandleToAttachTo)
-			: programLoaded(false)
+		fluxCgEffect(dword fluxHandleToAttachTo)
+			: programLoaded(false), fluxHandleWasAttached(true)
 		{
 			wnd_set_paint_callback(fluxHandleToAttachTo, paintCB, (prop_t)this);
 			fluxHandle= fluxHandleToAttachTo;
 		}
 
-		fluxCgWindow(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
-			: programLoaded(false)
+		fluxCgEffect(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+			: programLoaded(false), fluxHandleWasAttached(false)
 		{
 			fluxHandle= create_rect(parent, x,y, width,height, TRANSL_2, alignment);
 			wnd_set_paint_callback(fluxHandle, paintCB, (prop_t)this);
+		}
+
+		virtual ~fluxCgEffect()
+		{
+			if(fluxHandleWasAttached) wnd_set_paint_callback(fluxHandle, 0, 0);
+			else wnd_close(fluxHandle);
+			if(programLoaded) cgDestroyProgram(fragProgram);
 		}
 
 		dword getFluxHandle()
@@ -117,16 +125,16 @@ class fluxCgWindow
 
 		bool loadProgram(const char *filename)
 		{
-			fragProgram= gCgState.loadFragmentProgramFromFile("cg/test.cg");
+			fragProgram= gCgState.loadFragmentProgramFromFile(filename);
 			cgGLBindProgram(fragProgram);
 			return (programLoaded= gCgState.checkForCgError("binding fragment program"));
 		}
 
-	private:
+	protected:
 		CGprogram fragProgram;
-		CGprogram vertProgram;
 		bool programLoaded;
 		dword fluxHandle;
+		bool fluxHandleWasAttached;
 
 		void drawRect(rect &r)
 		{
@@ -136,6 +144,19 @@ class fluxCgWindow
 			glTexCoord2f(u1, v0);	glVertex2i(r.rgt, r.y);
 			glTexCoord2f(u1, v1);	glVertex2i(r.rgt, r.btm);
 			glTexCoord2f(u0, v1);	glVertex2i(r.x, r.btm);
+		}
+
+		void drawRectWithTexCoords(rect &r, rect &abspos)
+		{
+			double u00= double(r.x)/gScreenWidth, v00= double(r.y)/gScreenHeight,
+				   u01= double(r.rgt)/gScreenWidth, v01= double(r.btm)/gScreenHeight;
+			int w= abspos.rgt-abspos.x, h= abspos.btm-abspos.y;
+			double u10= double(r.x-abspos.x)/w, v10= double(r.y-abspos.y)/h,
+				   u11= double(r.rgt-abspos.x)/w, v11= double(r.btm-abspos.y)/h;
+			glMultiTexCoord2d(GL_TEXTURE1, u10, v10); glMultiTexCoord2d(GL_TEXTURE0, u00, v00); glVertex2i(r.x, r.y);
+			glMultiTexCoord2d(GL_TEXTURE1, u11, v10); glMultiTexCoord2d(GL_TEXTURE0, u01, v00); glVertex2i(r.rgt, r.y);
+			glMultiTexCoord2d(GL_TEXTURE1, u11, v11); glMultiTexCoord2d(GL_TEXTURE0, u01, v01); glVertex2i(r.rgt, r.btm);
+			glMultiTexCoord2d(GL_TEXTURE1, u10, v11); glMultiTexCoord2d(GL_TEXTURE0, u00, v01); glVertex2i(r.x, r.btm);
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
@@ -152,12 +173,11 @@ class fluxCgWindow
 			glBegin(GL_QUADS);
 			const rectlist *r;
 			for(r= dirtyRects; r; r= r->next)
-				drawRect(*r->self);
+				drawRectWithTexCoords(*r->self, *absPos);
 			glEnd();
 			cgGLDisableProfile(gCgState.getFragmentProfile());
 
 			gFBO.select_framebuffer_texture(0);
-			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[1]);
 			glBegin(GL_QUADS);
 			for(r= dirtyRects; r; r= r->next)
@@ -170,7 +190,102 @@ class fluxCgWindow
 
 		static void paintCB(prop_t arg, primitive *self, rect *abspos, const rectlist *dirty_rects)
 		{
-			reinterpret_cast<fluxCgWindow*>(arg)->paint(self, abspos, dirty_rects);
+			reinterpret_cast<fluxCgEffect*>(arg)->paint(self, abspos, dirty_rects);
+		}
+};
+
+
+class fluxMagnifyEffect: public fluxCgEffect
+{
+	public:
+		fluxMagnifyEffect(dword fluxHandleToAttachTo)
+			: fluxCgEffect(fluxHandleToAttachTo)
+		{
+			setup();
+		}
+
+		fluxMagnifyEffect(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+			: fluxCgEffect(x,y, width,height, parent, alignment)
+		{
+			setup();
+		}
+
+		~fluxMagnifyEffect()
+		{
+			glDeleteTextures(1, &displacementTexture);
+		}
+
+	private:
+		enum { textureSize= 512 };
+		GLuint displacementTexture;
+
+		bool setup()
+		{
+			float blob[textureSize*textureSize];
+			float dispPixels[textureSize*textureSize*2];
+
+			if(!loadProgram("cg/displace.cg")) return false;
+
+			// create displacement texture
+			makeSmoothBlob(textureSize, blob);
+			makeDisplacementMapFromHeight(textureSize, blob, dispPixels, .75);
+			glGenTextures(1, &displacementTexture);
+			glBindTexture(GL_TEXTURE_2D, displacementTexture);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16_ALPHA16, textureSize, textureSize, 0,
+						 GL_LUMINANCE_ALPHA, GL_FLOAT, dispPixels);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			return checkglerror();
+		}
+
+		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
+		{
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, displacementTexture);
+			glActiveTexture(GL_TEXTURE0);
+			checkglerror();
+			fluxCgEffect::paint(self, absPos, dirtyRects);
+		}
+
+		void makeSmoothBlob(int size, float *data)
+		{
+			float center= float(size)*.5;
+			for(int y= size-1; y>=0; y--)
+			{
+				for(int x= size-1; x>=0; x--)
+				{
+					float dx= x-center, dy= y-center;
+					float d= ((dx*dx)+(dy*dy)) / center;
+					d= 2-d*(.025*256/textureSize);
+					if(d<0) d= 0;
+					data[y*size+x]= d;
+				}
+			}
+		}
+
+		// outputs to a 2-value array suitable for GL_LUMINANCE_ALPHA (L = x displacement, A = y displacement)
+		void makeDisplacementMapFromHeight(int size, float* const src, float *dest, double scale= 1)
+		{
+			scale= scale * 16 * textureSize/256;
+			for(int y= size-1; y>=0; y--)
+			{
+				for(int x= size-1; x>=0; x--)
+				{
+					const int d= 1;
+					const double p= 1.5;
+					double x0= x<d? src[y*size+x+d]: src[y*size+x];
+					double x1= x<d? src[y*size+x]: src[y*size+x-d];
+					double dx= pow(x1, p)-pow(x0, p);
+
+					double y0= y<d? src[(y+d)*size+x+d]: src[y*size+x];
+					double y1= y<d? src[y*size+x]: src[(y-d)*size+x];
+					double dy= pow(y1, p)-pow(y0, p);
+
+					dest[(y*size+x)*2+0]= (dx) * scale + .5;
+					dest[(y*size+x)*2+1]= (dy) * scale + .5;
+				}
+			}
 		}
 };
 
@@ -265,10 +380,6 @@ int main()
 
 	setVideoMode(gScreenWidth, gScreenHeight);
 
-		fluxCgWindow *cgWnd= new fluxCgWindow(0,0, 300,200);
-		cgWnd->loadProgram("cg/test.cg");
-		clone_frame("titleframe", cgWnd->getFluxHandle());
-
 	for(int i= 0; i<3; i++)
 	{
 		ulong w= create_rect(NOPARENT, rand()%(gScreenWidth-200),rand()%(gScreenHeight-150), 200,150, (rand()&0xFFFFFF)|TRANSL_2);
@@ -276,16 +387,19 @@ int main()
 		char ch[128]; sprintf(ch, "Test %d\n", rand());
 		wnd_setprop(t, "title", (prop_t)ch);
 
-		if(!i)
-		{
-			fluxCgWindow *cgWnd= new fluxCgWindow(w);
-			cgWnd->loadProgram("cg/test.cg");
-		}
+//		if(!i)
+//		{
+//			fluxCgEffect *cgWnd= new fluxCgEffect(w);
+//			cgWnd->loadProgram("cg/test.cg");
+//		}
 
 		w= create_rect(0, rand()%(gScreenWidth-200),rand()%(gScreenHeight-150), 200,150, (rand()&0xFFFFFF)|TRANSL_2);
 	}
 
 	extern void testdlg(); testdlg();
+
+	fluxMagnifyEffect magniFx(100,50, 200,180);
+	clone_frame("titleframe", magniFx.getFluxHandle());
 
 	while(!doQuit)
 	{

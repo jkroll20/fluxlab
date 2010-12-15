@@ -3572,7 +3572,7 @@ static void prim_redraw_rectlist(primitive *p, rect *_abspos, rectlist *dirty_li
 	if(!_abspos) { prim_get_abspos(p, &abspos, true); _abspos= &abspos; }
 
 	if(p->callbacks.paint)
-        p->callbacks.paint(p->callbacks.paint_arg, p, &abspos, dirty_list);
+        p->callbacks.paint(p->callbacks.paint_arg, p, _abspos, dirty_list);
 	else
 		do { prim_redraw(p, _abspos, dirty_list->self); } while (dirty_list= dirty_list->next);
 }

@@ -1,14 +1,16 @@
 #ifndef FBO_H_INCLUDED
 #define FBO_H_INCLUDED
 
-inline void checkglerror(bool fatal= false)
+inline bool checkglerror(bool fatal= false)
 {
     int err= glGetError();
     if(err)
     {
     	printf("GL Error: %s\n", gluErrorString(err));
         if(fatal) abort();
+        else return false;
     }
+    return true;
 }
 
 
@@ -28,7 +30,7 @@ template<int NTEXTURES= 1,
     bool using_packed_depth_stencilbuf;
     bool initialized;
 
-    fbo(): using_packed_depth_stencilbuf(false), width(0), height(0), initialized(false)
+    fbo(): width(0), height(0), using_packed_depth_stencilbuf(false), initialized(false)
     { }
 
     void enable()
@@ -174,7 +176,6 @@ template<int NTEXTURES= 1,
             {
                 // initialize color texture
                 glBindTexture(GL_TEXTURE_2D, color_textures[i]);
-//				glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
                 glTexImage2D(GL_TEXTURE_2D, 0, COLOR_FORMAT, width, height, 0,
                              GL_RGB, GL_UNSIGNED_BYTE, NULL);
