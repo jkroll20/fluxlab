@@ -190,7 +190,7 @@ static int get_min_powerof2(int n)
 }
 
 
-// Wird aufgerufen wenn sich die Pixeldaten von dem Font ge‰ndert haben
+// Wird aufgerufen wenn sich die Pixeldaten von dem Font ge√§ndert haben
 // GL-Textur hochladen
 extern "C"
 void font_dep_update(font *_font)
@@ -208,7 +208,7 @@ void font_dep_update(font *_font)
 }
 
 
-// System-abh‰ngige Daten (GL Textur) freigeben
+// System-abh√§ngige Daten (GL Textur) freigeben
 extern "C"
 void font_dep_free(font *font)
 {
@@ -587,7 +587,8 @@ void load_default_fonts()
     def_fonts[ prop_t(FONT_CAPTION) ]=
     def_fonts[ prop_t(FONT_SYMBOL) ]=
     def_fonts[ prop_t(FONT_FIXED) ]=
-    	(font*)font_load_texture(default_font_png, default_font_png_size, 14, default_font_texcoords, sizeof(default_font_texcoords)/8);
+    	(font*)font_load_texture(default_font_png, default_font_png_size, 14, default_font_texcoords,
+								sizeof(default_font_texcoords)/(sizeof(default_font_texcoords[0])*4));
 }
 
 

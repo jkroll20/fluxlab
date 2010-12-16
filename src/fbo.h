@@ -7,6 +7,7 @@ inline bool checkglerror(bool fatal= false)
     if(err)
     {
     	printf("GL Error: %s\n", gluErrorString(err));
+		*(int*)0= 0;
         if(fatal) abort();
         else return false;
     }
@@ -161,9 +162,11 @@ template<int NTEXTURES= 1,
         this->width= width;
         this->height= height;
 
+        checkglerror(true);
+
         // create objects
         glGenFramebuffersEXT(1, &fb);           // frame buffer
-        if(USE_DEPTHBUF && USE_DEPTHTEXTURES)
+        if(USE_DEPTHBUF) // && USE_DEPTHTEXTURES)
             glGenRenderbuffersEXT(1, &depth_renderbuffer);    // depth render buffers
         glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb);
         checkglerror(true);
@@ -232,7 +235,7 @@ template<int NTEXTURES= 1,
             {
                 // initialize depth renderbuffer
                 glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, depth_renderbuffer);
-                glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT, width, height);
+                glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT16, width, height);
             }
 
             if(USE_DEPTHTEXTURES)
@@ -278,12 +281,13 @@ template<int NTEXTURES= 1,
                 }
             return false;
         }
+        checkglerror();
 
         int depth_bits= 0, stencil_bits= 0;
         if(USE_DEPTHBUF || USE_STENCIL)
 		{
 			glGetRenderbufferParameterivEXT(GL_RENDERBUFFER_EXT, GL_RENDERBUFFER_DEPTH_SIZE_EXT, &depth_bits);
-			if(!using_packed_depth_stencilbuf) glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, stencil_renderbuffer);
+			if(USE_STENCIL && !using_packed_depth_stencilbuf) glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, stencil_renderbuffer);
 			glGetRenderbufferParameterivEXT(GL_RENDERBUFFER_EXT, GL_RENDERBUFFER_STENCIL_SIZE_EXT, &stencil_bits);
 		}
         printf("fbo initialized, size %dx%d, depth bits: %d, stencil bits: %d\n", width, height, depth_bits, stencil_bits);

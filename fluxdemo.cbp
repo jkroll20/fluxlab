@@ -45,6 +45,8 @@
 			<Add library="GLU" />
 			<Add library="Cg" />
 			<Add library="CgGL" />
+			<Add library="glut" />
+			<Add library="SDL_image" />
 			<Add directory="libflux/lib" />
 		</Linker>
 		<ExtraCommands>

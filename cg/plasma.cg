@@ -52,7 +52,7 @@ float3 main(float3 frontColor: COLOR0,
 //				 sin(value*sin(t*0.015)),
 //				 sin(value*sin(t*0.0174))) * frontColor;
 
-	float3 m= frontColor - float3(tc.x, tc.y, -tc.x)*.125;
+	float3 m= frontColor - float3(tc.x, tc.y, -tc.x)*.25;
 	return float3( sin(value*.7+time) * m + m ) + tex2D(tex0, texCoord0);
 //	return float3( sin(frontColor*value) );
 

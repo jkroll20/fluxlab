@@ -4,9 +4,11 @@
 #include <cmath>
 #include <flux.h>
 #include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <GL/glut.h>
 #include <Cg/cg.h>
 #include <Cg/cgGL.h>
 #include "fbo.h"
@@ -14,7 +16,7 @@
 using namespace std;
 
 
-fbo<2, true, GL_RGB, false> gFBO;
+fbo<2, true, GL_RGB, true> gFBO;
 int gScreenWidth= 1024, gScreenHeight= 600;
 float gZoom= 1.0;
 
@@ -174,7 +176,6 @@ class fluxCgEffect
 			glEnable(GL_DITHER);
 			gFBO.select_framebuffer_texture(1);
 			glDisable(GL_DEPTH_TEST);
-//			glColor3f(1,1,1);
 			cgGLEnableProfile(gCgState.getFragmentProfile());
 			cgGLBindProgram(fragProgram);
 			glEnable(GL_TEXTURE_2D);
@@ -228,15 +229,18 @@ class fluxEffectWindowContainer
 			wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
 			effect->loadProgram(cgFilename, entryFunc);
 			effectWindows.push_back(effect);
+			return *effect;
 		}
 
 		class fluxMagnifyEffect &createMagniFxWindow(int x, int y, int width, int height, const char *title);
 
 		class fluxPlasmaEffect &createPlasmaWindow(int x, int y, int width, int height, const char *title);
 
+		class fluxTeapot &createTeapot(int x, int y, int width, int height, const char *title);
+		class fluxDisplacementEffect &createDisplacementWindow(int x, int y, int width, int height, const char *title);
+
 		void erase(fluxCgEffect *x)
 		{
-			printf("deleting %08X\n", x);
 			for(effectWindowList::iterator i= effectWindows.begin(); i!=effectWindows.end(); i++)
 				if(*i==x)
 				{
@@ -394,19 +398,142 @@ class fluxPlasmaEffect: public fluxCgEffect
 			cgGLSetParameter2f(cgPlasmaCoord, sin(time*0.23)*2, sin(time*0.258)*2);
 			cgUpdateProgramParameters(fragProgram);
 
-//			glColor3f(.5, .75, .5);
-			glColor3f(sin(time*.33)*.7+.7, sin(time*.45)*.7+.7, sin(time*.92)*.7+.7);
+			glColor3f(sin(time*.33)*.7+.5, sin(time*.45)*.7+.5, sin(time*.92)*.7+.5);
 
 			fluxCgEffect::paint(self, absPos, dirtyRects);
 		}
 };
+
+
+GLuint loadTexture(const char *filename, bool mipmapped= true)
+{
+    SDL_Surface *surface= IMG_Load(filename);
+    if(!surface) return 0;
+
+    GLuint name;
+    glGenTextures(1, &name);
+    glBindTexture(GL_TEXTURE_2D, name);
+    int bpp= surface->format->BitsPerPixel;
+    int format= (bpp==8? GL_LUMINANCE: bpp==16? GL_LUMINANCE_ALPHA: bpp==24? GL_RGB: GL_RGBA);
+    int internalformat= (bpp==32? 4: bpp==8? 1: 3);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipmapped? GL_LINEAR_MIPMAP_LINEAR: GL_LINEAR);
+    if(mipmapped)
+        gluBuild2DMipmaps(GL_TEXTURE_2D, internalformat, surface->w,surface->h, format, GL_UNSIGNED_BYTE, surface->pixels);
+    else
+        glTexImage2D(GL_TEXTURE_2D, 0, internalformat, surface->w,surface->h, 0,
+             format, GL_UNSIGNED_BYTE, surface->pixels);
+    return name;
+}
+
+class fluxTeapot: public fluxCgEffect
+{
+	public:
+		fluxTeapot(dword fluxHandleToAttachTo)
+			: fluxCgEffect(fluxHandleToAttachTo)
+		{
+			setup();
+		}
+
+		fluxTeapot(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+			: fluxCgEffect(x,y, width,height, parent, alignment)
+		{
+			setup();
+		}
+
+	private:
+		GLuint texture;
+
+		void setup()
+		{
+			int argc= 1;
+			char *argv[]= { "whatever", 0 };
+			glutInit(&argc, argv);
+			texture= loadTexture("data/mix.png");
+		}
+
+		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
+		{
+			float w= absPos->rgt-absPos->x, h= absPos->btm-absPos->y;
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadIdentity();
+			gluPerspective(90*float(h)/w, float(w)/h, 0.01, 100);
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity();
+			glViewport(absPos->x,absPos->y, w,h);
+
+			glClear(GL_DEPTH_BUFFER_BIT);
+
+			glTranslatef(0, 0, -9);
+			glRotatef(-22.5, 1, 0, 0);
+			glRotatef(SDL_GetTicks()*0.001*100, 0, 1, 0);
+			glRotatef(180, 1, 0, 0);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glEnable(GL_CULL_FACE);
+			glCullFace(GL_FRONT);
+			glEnable(GL_DEPTH_TEST);
+			glMatrixMode(GL_TEXTURE);
+			glScalef(.125, .125, 1);
+			glMatrixMode(GL_MODELVIEW);
+			glutSolidTeapot(4);
+			glMatrixMode(GL_TEXTURE);
+			glLoadIdentity();
+			glDisable(GL_TEXTURE_2D);
+			glDisable(GL_CULL_FACE);
+			glDisable(GL_DEPTH_TEST);
+
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glViewport(0,0, gScreenWidth, gScreenHeight);
+		}
+};
+
+
+class fluxDisplacementEffect: public fluxCgEffect
+{
+	public:
+		fluxDisplacementEffect(dword fluxHandleToAttachTo)
+			: fluxCgEffect(fluxHandleToAttachTo)
+		{
+			setup();
+		}
+
+		fluxDisplacementEffect(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+			: fluxCgEffect(x,y, width,height, parent, alignment)
+		{
+			setup();
+		}
+
+	private:
+		GLuint displacementTexture;
+
+		void setup()
+		{
+			displacementTexture= loadTexture("data/metal.png");
+			loadProgram("cg/displace.cg", "displaceHeightmap");
+		}
+
+		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
+		{
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, displacementTexture);
+			glActiveTexture(GL_TEXTURE0);
+			fluxCgEffect::paint(self, absPos, dirtyRects);
+		}
+};
+
 
 fluxMagnifyEffect &fluxEffectWindowContainer::createMagniFxWindow(int x, int y, int width, int height, const char *title)
 {
 	fluxMagnifyEffect *effect= new fluxMagnifyEffect(x,y, width,height);
 	wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
 	effectWindows.push_back(effect);
-	checkglerror();
+	return *effect;
 }
 
 fluxPlasmaEffect &fluxEffectWindowContainer::createPlasmaWindow(int x, int y, int width, int height, const char *title)
@@ -414,8 +541,24 @@ fluxPlasmaEffect &fluxEffectWindowContainer::createPlasmaWindow(int x, int y, in
 	fluxPlasmaEffect *effect= new fluxPlasmaEffect(x,y, width,height);
 	wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
 	effectWindows.push_back(effect);
+	return *effect;
 }
 
+fluxTeapot &fluxEffectWindowContainer::createTeapot(int x, int y, int width, int height, const char *title)
+{
+	fluxTeapot *effect= new fluxTeapot(x,y, width,height);
+	wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+	effectWindows.push_back(effect);
+	return *effect;
+}
+
+fluxDisplacementEffect &fluxEffectWindowContainer::createDisplacementWindow(int x, int y, int width, int height, const char *title)
+{
+	fluxDisplacementEffect *effect= new fluxDisplacementEffect(x,y, width,height);
+	wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+	effectWindows.push_back(effect);
+	return *effect;
+}
 
 
 void setVideoMode(int w, int h)
@@ -517,19 +660,22 @@ int main()
 
 	setVideoMode(gScreenWidth, gScreenHeight);
 
-	for(int i= 0; i<3; i++)
+	for(int i= 0; i<0; i++)
 	{
 		ulong w= create_rect(NOPARENT, rand()%(gScreenWidth-200),rand()%(gScreenHeight-150), 200,150, (rand()&0xFFFFFF)|TRANSL_2);
 		ulong t= clone_frame("titleframe", w);
-		char ch[128]; sprintf(ch, "Test %d\n", rand());
-		wnd_setprop(t, "title", (prop_t)ch);
+		wnd_setprop(t, "title", (prop_t)"Halbtransparent");
 	}
 
 //	extern void testdlg(); testdlg();
 
 	gEffectWindows.createMagniFxWindow(100,50, 200,180, "Verzerrung");
-	gEffectWindows.createGenericFxWindow(200,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
-	gEffectWindows.createPlasmaWindow(300,200, 200,180, "Plasma");
+	gEffectWindows.createGenericFxWindow(250,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
+	gEffectWindows.createGenericFxWindow(100,300, 200,180, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
+	gEffectWindows.createGenericFxWindow(300,300, 200,180, "Negativ", "cg/colors.cg", "negate");
+	gEffectWindows.createPlasmaWindow(400,300, 200,180, "Plasma");
+	gEffectWindows.createTeapot(500,50, 200,180, "Teapot.");
+	gEffectWindows.createDisplacementWindow(600,150, 200,180, "Displacement");
 
 	while(!doQuit)
 	{

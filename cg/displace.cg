@@ -1,13 +1,30 @@
 
-float4 main(float2 imgTexCoord: TEXCOORD0,
+float3 main(float2 imgTexCoord: TEXCOORD0,
 			float2 dispTexCoord: TEXCOORD1,
 			sampler2D imgTex: TEXUNIT0,
 			sampler2D dispTex: TEXUNIT1): COLOR
 {
 	float4 displacementTexel= (tex2D(dispTex, dispTexCoord)-.5) * (1.0/16);
-	float4 imgTexel= tex2D(imgTex, imgTexCoord-(float2(displacementTexel.r, displacementTexel.a)));
+	float3 imgTexel= tex2D(imgTex, imgTexCoord-(float2(displacementTexel.r, displacementTexel.a)));
 	imgTexel-= displacementTexel.r;
 	imgTexel-= displacementTexel.a;
+	return imgTexel;
+}
+
+
+float3 displaceHeightmap(float2 imgTexCoord: TEXCOORD0,
+						 float2 dispTexCoord: TEXCOORD1,
+						 sampler2D imgTex: TEXUNIT0,
+						 sampler2D dispTex: TEXUNIT1): COLOR
+{
+	const float d= 0.01;
+	dispTexCoord*= .25;
+	float4 disp00= tex2D(dispTex, dispTexCoord),
+		   disp01= tex2D(dispTex, dispTexCoord+float2(0, d)),
+		   disp10= tex2D(dispTex, dispTexCoord+float2(d, 0)),
+		   disp11= tex2D(dispTex, dispTexCoord+float2(d, d));
+	float2 disp= float2(disp01.r-disp00.r, disp10.r-disp00.r);
+	float3 imgTexel= tex2D( imgTex, imgTexCoord + disp*.1 ); // + abs(disp.x*.2)-abs(disp.y*.2);
 	return imgTexel;
 }
 

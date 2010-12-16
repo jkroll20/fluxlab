@@ -1367,9 +1367,9 @@ void create_titleframe()
   create_rect(tbk, 0,0, MAXSCALE,1, COL_FRAMEHI|TRANSL_1, ALIGN_BOTTOM|WREL);
   create_rect(tbk, 0,1, MAXSCALE,1, COL_FRAMELO|TRANSL_2, ALIGN_BOTTOM|WREL);
 
-  dword bclose= clone_group("titlebtn", tbk, 2,0, 12,12, ALIGN_RIGHT|ALIGN_VCENTER);
-  wnd_setprop(bclose, "font", (prop_t)FONT_SYMBOL);
-  wnd_setprop(bclose, "text", (prop_t)"\x80");
+  dword bclose= clone_group("titlebtn", tbk, 3,0, 12,12, ALIGN_RIGHT|ALIGN_VCENTER);
+  wnd_setprop(bclose, "font", (prop_t)FONT_DEFAULT);
+  wnd_setprop(bclose, "text", (prop_t)"x");
   wnd_setprop(bclose, "on_click", (prop_t)btn_close);
 
   //~ dword bshade= clone_group("titlebtn", tbk, 2,0, 12,12, ALIGN_VCENTER);
@@ -1377,10 +1377,10 @@ void create_titleframe()
   //~ wnd_setprop(bshade, "text", (prop_t)"\x81");
   //~ wnd_setprop(bshade, "on_click", (prop_t)btn_minimize);
 
-  dword bmini= clone_group("titlebtn", tbk, 15,0, 12,12, ALIGN_RIGHT|ALIGN_VCENTER);
-  wnd_setprop(bmini, "font", (prop_t)FONT_SYMBOL);
-  wnd_setprop(bmini, "text", (prop_t)"\x82");
-  wnd_setprop(bmini, "on_click", (prop_t)btn_minimize);
+//  dword bmini= clone_group("titlebtn", tbk, 15,0, 12,12, ALIGN_RIGHT|ALIGN_VCENTER);
+//  wnd_setprop(bmini, "font", (prop_t)FONT_SYMBOL);
+//  wnd_setprop(bmini, "text", (prop_t)"\x82");
+//  wnd_setprop(bmini, "on_click", (prop_t)btn_minimize);
 
   wnd_set_mouse_callback(tbk, tbar_cbmouse, 0);
   wnd_set_props_callback(idtitlegrp, tframe_cbprops, 0);
@@ -1760,6 +1760,8 @@ int btn_cbmouse(prop_t arg, primitive *self, int event, int x, int y, int btn)
 
   else if(event==MOUSE_DOWN)
   {
+  	if(btn!=1) return 0;
+
     if(!data->cb_click)
       data->cb_click= (btn_cbclick)wnd_getprop(self->id, "on_click");
 
@@ -1780,7 +1782,7 @@ int btn_cbmouse(prop_t arg, primitive *self, int event, int x, int y, int btn)
 
     if( ptinrect(x+rc.x, y+rc.y, rc) &&
         data->cb_click &&
-        data->btn_down &&
+        data->btn_down==1 &&
         !(data->btn_down&btn) )
       data->cb_click(self->id, false, data->btn_down);
 
@@ -1819,7 +1821,7 @@ void create_button_groups()
 
   hbtngrp= create_group("titlebtn");
   hrect= create_rect(hbtngrp, 0,0, MAXSCALE,MAXSCALE, COL_ITEM, WREL|HREL);
-  create_text(hbtngrp, 0,0, font_gettextwidth(FONT_DEFAULT, "Button"),13, "Button",
+  create_text(hbtngrp, 1,0, font_gettextwidth(FONT_DEFAULT, "Button"),13, "Button",
               COL_ITEMTEXT, FONT_DEFAULT, ALIGN_HCENTER|ALIGN_VCENTER);
   clone_group("raisedframe0", hbtngrp);
 
