@@ -6,10 +6,8 @@ float4 main(float2 imgTexCoord: TEXCOORD0,
 {
 	float4 displacementTexel= (tex2D(dispTex, dispTexCoord)-.5) * (1.0/16);
 	float4 imgTexel= tex2D(imgTex, imgTexCoord-(float2(displacementTexel.r, displacementTexel.a)));
-//	imgTexel-= displacementTexel.r*1;
-//	imgTexel-= displacementTexel.a*1;
-	return imgTexel; //displacementTexel; //
-
-//	return float4(dispTexCoord, 0, 1);
+	imgTexel-= displacementTexel.r;
+	imgTexel-= displacementTexel.a;
+	return imgTexel;
 }
 

@@ -1,0 +1,70 @@
+//varying vec4 frontColor;
+//uniform float time;
+
+//#define vlen(x,y) sqrt( (x)*(x) + (y)*(y) )
+#define vlen(x,y) length(float2(x,y))
+
+float sv(float2 tc, float t, float a, float b, float c)
+{
+	return sin(vlen(tc.x+sin(t*a)*80.0-150.0, tc.y+sin(t*b)*80.0-150.0) / (8.0+sin(t*c)*4.0));
+}
+
+float3 main(float3 frontColor: COLOR0,
+			float2 texCoord0: TEXCOORD0,
+			float2 texCoord1: TEXCOORD1,
+			sampler2D tex0: TEXUNIT0,
+			uniform float time,
+			uniform float2 plasmaCoord): COLOR
+{
+//    float t= time;
+    float2 tc= texCoord1*5+plasmaCoord;
+//    float d= length(tc)*3;
+//    float x= tc.x;
+//    float y= tc.y;
+//    float value =  sin(vlen(tc.x+sin(t*0.08)*80.0-150.0, tc.y+sin(t*0.04)*80.0-150.0) / (8.0+sin(t*0.005)*4.0))
+//                 + sin(vlen(tc.x+sin(t*0.09)*80.0-150.0, tc.y+sin(t*0.02)*80.0-150.0) / (9.0+sin(t*0.0032)*4.0))
+//                 + sin(vlen(tc.x+sin(t*0.03)*80.0-150.0, tc.y+sin(t*0.03)*80.0-150.0) / (7.0+sin(t*0.0067)*3.0))
+//                 + sin(vlen(tc.x+sin(t*0.02)*80.0-150.0, tc.y+sin(t*0.05)*80.0-150.0) / (8.0+sin(t*0.0042)*3.0));
+//	;
+
+	float a= sin(sin(time)+tc.y)*tc.y+tc.x;
+	float value= a*sin(time+tc.x);
+
+//    float value =  sin(vlen(x+sin(t*0.08)*80.0-150.0, y-sin(t*0.04)*80.0-150.0) / 8.0)
+//                 + sin(vlen(x-sin(t*0.09)*80.0-150.0, y+sin(t*0.02)*80.0-150.0) / 9.0)
+//                 + sin(vlen(x+sin(t*0.03)*80.0-150.0, y-sin(t*0.03)*80.0-150.0) / 7.0)
+//                 + sin(vlen(x-sin(t*0.02)*80.0-150.0, y+sin(t*0.05)*80.0-150.0) / 8.0);
+
+//	float value= sin(tc.x+t*0.1) + sin(tc.y+t*0.12);
+
+//    value= sin(value)*0.5+0.5;
+//    gl_FragColor= vec4(value);
+
+//    gl_FragColor= vec4( sin(value)*0.5+0.5, sin(value*1.2)*0.5+0.5, sin(value*0.9)*0.5+0.5, 1 );
+
+//    value= sin(value) * (sin(t*0.023)*3.0 + 3.5); // + t*0.0000092;
+//    gl_FragColor= vec4( sin(value*sin(t*0.013))*0.5+0.5, sin(value*sin(t*0.015))*0.5+0.5, sin(value*sin(t*0.0174))*0.5+0.5, 1 );
+
+//    return vec3( sin(value*sin(t*0.013))*0.4+0.4,
+//				 sin(value*sin(t*0.015))*0.5+0.5,
+//				 sin(value*sin(t*0.0174))*0.6+0.6 );
+//    return vec3( sin(value*sin(t*0.013)),
+//				 sin(value*sin(t*0.015)),
+//				 sin(value*sin(t*0.0174))) * frontColor;
+
+	float3 m= frontColor - float3(tc.x, tc.y, -tc.x)*.125;
+	return float3( sin(value*.7+time) * m + m ) + tex2D(tex0, texCoord0);
+//	return float3( sin(frontColor*value) );
+
+//	return float3( value * sin(frontColor) );//  float3(sin(t*.43), sin(t*.77), sin(t*.91)) );
+
+
+//    vec4 color= vec4(sin(vlen(x+sin(t*0.08)*80.0-150.0, y-sin(t*0.04)*80.0-150.0) / 8.0),
+//                     sin(vlen(x-sin(t*0.09)*80.0-150.0, y+sin(t*0.02)*80.0-150.0) / 8.0),
+//                     sin(vlen(x+sin(t*0.03)*80.0-150.0, y-sin(t*0.03)*80.0-150.0) / 7.0),
+//                     sin(vlen(x-sin(t*0.02)*80.0-150.0, y+sin(t*0.05)*80.0-150.0) / 8.0));
+//    gl_FragColor= color;
+}
+
+
+

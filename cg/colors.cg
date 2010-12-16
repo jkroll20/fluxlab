@@ -1,0 +1,26 @@
+
+
+float3 invertHue(float2 imgTexCoord: TEXCOORD0,
+				 sampler2D imgTex: TEXUNIT0): COLOR
+{
+	float3 imgTexel= tex2D(imgTex, imgTexCoord);
+	float len= length(imgTexel);
+	imgTexel= 1.05-imgTexel;
+	imgTexel= normalize(imgTexel);
+	return imgTexel*len;
+}
+
+float3 invertLightness(float2 imgTexCoord: TEXCOORD0,
+					   sampler2D imgTex: TEXUNIT0): COLOR
+{
+	float3 imgTexel= (float3)tex2D(imgTex, imgTexCoord);
+	float len= length(imgTexel);
+	return imgTexel * ((1.0-len)/len);
+}
+
+float3 negate(float2 imgTexCoord: TEXCOORD0,
+			  sampler2D imgTex: TEXUNIT0): COLOR
+{
+	return 1.0 - (float3)tex2D(imgTex, imgTexCoord);
+}
+
