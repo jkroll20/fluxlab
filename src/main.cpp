@@ -1,4 +1,6 @@
 #include <iostream>
+#include <vector>
+#include <algorithm>
 #include <cmath>
 #include <flux.h>
 #include <SDL/SDL.h>
@@ -91,7 +93,7 @@ class CgState
 		CGcontext	myCgContext;
 		CGprofile   myCgVertexProfile,
 					myCgFragmentProfile;
-} gCgState;	// could be a singleton, but i can't be bothered for this demo
+} gCgState;
 
 
 class fluxCgEffect
@@ -102,6 +104,7 @@ class fluxCgEffect
 		{
 			wnd_set_paint_callback(fluxHandleToAttachTo, paintCB, (prop_t)this);
 			fluxHandle= fluxHandleToAttachTo;
+			wnd_set_status_callback(fluxHandle, statusCB, (prop_t)this);
 		}
 
 		fluxCgEffect(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
@@ -109,6 +112,8 @@ class fluxCgEffect
 		{
 			fluxHandle= create_rect(parent, x,y, width,height, TRANSL_2, alignment);
 			wnd_set_paint_callback(fluxHandle, paintCB, (prop_t)this);
+			wnd_set_status_callback(fluxHandle, statusCB, (prop_t)this);
+			wnd_setisize(fluxHandle, width, height);
 		}
 
 		virtual ~fluxCgEffect()
@@ -123,9 +128,10 @@ class fluxCgEffect
 			return fluxHandle;
 		}
 
-		bool loadProgram(const char *filename)
+		bool loadProgram(const char *filename, const char *entryFunc= "main")
 		{
-			fragProgram= gCgState.loadFragmentProgramFromFile(filename);
+			fragProgram= gCgState.loadFragmentProgramFromFile(filename, entryFunc);
+			cgCompileProgram(fragProgram);
 			cgGLBindProgram(fragProgram);
 			return (programLoaded= gCgState.checkForCgError("binding fragment program"));
 		}
@@ -159,14 +165,18 @@ class fluxCgEffect
 			glMultiTexCoord2d(GL_TEXTURE1, u10, v11); glMultiTexCoord2d(GL_TEXTURE0, u00, v01); glVertex2i(r.x, r.btm);
 		}
 
+		virtual void onClose();
+
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
 		{
 			if(!programLoaded) return;
 
+			glEnable(GL_DITHER);
 			gFBO.select_framebuffer_texture(1);
 			glDisable(GL_DEPTH_TEST);
-			glColor3f(1,1,1);
+//			glColor3f(1,1,1);
 			cgGLEnableProfile(gCgState.getFragmentProfile());
+			cgGLBindProgram(fragProgram);
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
 			glDisable(GL_BLEND);
@@ -176,6 +186,7 @@ class fluxCgEffect
 				drawRectWithTexCoords(*r->self, *absPos);
 			glEnd();
 			cgGLDisableProfile(gCgState.getFragmentProfile());
+			glDisable(GL_DITHER);
 
 			gFBO.select_framebuffer_texture(0);
 			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[1]);
@@ -190,9 +201,67 @@ class fluxCgEffect
 
 		static void paintCB(prop_t arg, primitive *self, rect *abspos, const rectlist *dirty_rects)
 		{
+			glColor3f(1,1,1);
 			reinterpret_cast<fluxCgEffect*>(arg)->paint(self, abspos, dirty_rects);
 		}
+
+		static int statusCB(prop_t arg, struct primitive *self, int type)
+		{
+			if(type==STAT_DESTROY)
+				reinterpret_cast<fluxCgEffect*>(arg)->onClose();
+			return 1;
+		}
 };
+
+class fluxEffectWindowContainer
+{
+	public:
+		~fluxEffectWindowContainer()
+		{
+			clear();
+		}
+
+		fluxCgEffect &createGenericFxWindow(int x, int y, int width, int height, const char *title,
+											const char *cgFilename, const char *entryFunc= "main")
+		{
+			fluxCgEffect *effect= new fluxCgEffect(x,y, width,height);
+			wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+			effect->loadProgram(cgFilename, entryFunc);
+			effectWindows.push_back(effect);
+		}
+
+		class fluxMagnifyEffect &createMagniFxWindow(int x, int y, int width, int height, const char *title);
+
+		class fluxPlasmaEffect &createPlasmaWindow(int x, int y, int width, int height, const char *title);
+
+		void erase(fluxCgEffect *x)
+		{
+			printf("deleting %08X\n", x);
+			for(effectWindowList::iterator i= effectWindows.begin(); i!=effectWindows.end(); i++)
+				if(*i==x)
+				{
+					delete(*i);
+					effectWindows.erase(i);
+					break;
+				}
+		}
+
+		void clear()
+		{
+			while(effectWindows.size()) erase(effectWindows[0]);
+		}
+
+	private:
+		typedef vector<fluxCgEffect*> effectWindowList;
+		effectWindowList effectWindows;
+
+} gEffectWindows;
+
+
+void fluxCgEffect::onClose()
+{
+	gEffectWindows.erase(this);
+}
 
 
 class fluxMagnifyEffect: public fluxCgEffect
@@ -244,7 +313,6 @@ class fluxMagnifyEffect: public fluxCgEffect
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, displacementTexture);
 			glActiveTexture(GL_TEXTURE0);
-			checkglerror();
 			fluxCgEffect::paint(self, absPos, dirtyRects);
 		}
 
@@ -289,11 +357,79 @@ class fluxMagnifyEffect: public fluxCgEffect
 		}
 };
 
+class fluxPlasmaEffect: public fluxCgEffect
+{
+	public:
+		fluxPlasmaEffect(dword fluxHandleToAttachTo)
+			: fluxCgEffect(fluxHandleToAttachTo)
+		{
+			setup();
+		}
+
+		fluxPlasmaEffect(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+			: fluxCgEffect(x,y, width,height, parent, alignment)
+		{
+			setup();
+		}
+
+	private:
+		CGparameter cgTime;
+		CGparameter cgPlasmaCoord;
+
+		void setup()
+		{
+			loadProgram("cg/plasma.cg");
+			cgTime= cgGetNamedParameter(fragProgram, "time");
+			cgPlasmaCoord= cgGetNamedParameter(fragProgram, "plasmaCoord");
+		}
+
+		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
+		{
+			if(!programLoaded) return;
+
+			cgGLEnableProfile(gCgState.getFragmentProfile());
+			cgGLBindProgram(fragProgram);
+			double time= SDL_GetTicks()*0.001;
+			cgGLSetParameter1f(cgTime, time);
+			cgGLSetParameter2f(cgPlasmaCoord, sin(time*0.23)*2, sin(time*0.258)*2);
+			cgUpdateProgramParameters(fragProgram);
+
+//			glColor3f(.5, .75, .5);
+			glColor3f(sin(time*.33)*.7+.7, sin(time*.45)*.7+.7, sin(time*.92)*.7+.7);
+
+			fluxCgEffect::paint(self, absPos, dirtyRects);
+		}
+};
+
+fluxMagnifyEffect &fluxEffectWindowContainer::createMagniFxWindow(int x, int y, int width, int height, const char *title)
+{
+	fluxMagnifyEffect *effect= new fluxMagnifyEffect(x,y, width,height);
+	wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+	effectWindows.push_back(effect);
+	checkglerror();
+}
+
+fluxPlasmaEffect &fluxEffectWindowContainer::createPlasmaWindow(int x, int y, int width, int height, const char *title)
+{
+	fluxPlasmaEffect *effect= new fluxPlasmaEffect(x,y, width,height);
+	wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+	effectWindows.push_back(effect);
+}
+
+
 
 void setVideoMode(int w, int h)
 {
 	SDL_Init(SDL_INIT_VIDEO);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
+	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 1);
 	SDL_SetVideoMode(w, h, 0, SDL_OPENGL|SDL_RESIZABLE); //|SDL_FULLSCREEN);
+	int haveDoubleBuf, depthSize, swapControl;
+	SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &haveDoubleBuf);
+	SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depthSize);
+	SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swapControl);
+	printf("Double Buffer: %s Depth Size: %d swap control: %d\n", haveDoubleBuf? "true": "false", depthSize, swapControl);
 	SDL_ShowCursor(false);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -302,6 +438,7 @@ void setVideoMode(int w, int h)
 	glLoadIdentity();
 	gFBO.free_resources();
 	gFBO.create(w, h);
+	glDisable(GL_DITHER);
 	gFBO.disable();
 
 	if(gCgState.initialize())
@@ -386,20 +523,13 @@ int main()
 		ulong t= clone_frame("titleframe", w);
 		char ch[128]; sprintf(ch, "Test %d\n", rand());
 		wnd_setprop(t, "title", (prop_t)ch);
-
-//		if(!i)
-//		{
-//			fluxCgEffect *cgWnd= new fluxCgEffect(w);
-//			cgWnd->loadProgram("cg/test.cg");
-//		}
-
-		w= create_rect(0, rand()%(gScreenWidth-200),rand()%(gScreenHeight-150), 200,150, (rand()&0xFFFFFF)|TRANSL_2);
 	}
 
-	extern void testdlg(); testdlg();
+//	extern void testdlg(); testdlg();
 
-	fluxMagnifyEffect magniFx(100,50, 200,180);
-	clone_frame("titleframe", magniFx.getFluxHandle());
+	gEffectWindows.createMagniFxWindow(100,50, 200,180, "Verzerrung");
+	gEffectWindows.createGenericFxWindow(200,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
+	gEffectWindows.createPlasmaWindow(300,200, 200,180, "Plasma");
 
 	while(!doQuit)
 	{

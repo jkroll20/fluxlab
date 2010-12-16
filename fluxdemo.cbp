@@ -52,6 +52,9 @@
 			<Add before="(rm fluxdemo || true) 2&gt;/dev/null" />
 			<Mode after="always" />
 		</ExtraCommands>
+		<Unit filename="cg/colors.cg" />
+		<Unit filename="cg/displace.cg" />
+		<Unit filename="cg/plasma.cg" />
 		<Unit filename="cg/test.cg" />
 		<Unit filename="cg/test2.cg" />
 		<Unit filename="src/fbo.h" />

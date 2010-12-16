@@ -199,20 +199,20 @@ struct primitive: public rect
     struct
     {
 	dword transparent: 1, 	// potentiell "durchsichtig"
-	      is_frame: 1,    	// gehört zum Frame des Parents
+	      is_frame: 1,    	// gehÃ¶rt zum Frame des Parents
 	      z_pos: 2,       	// normal/topmost/bottommost
 	      visible: 1,     	// im Moment sichtbar
-	      resizable: 1,   	// man kann mit rechter maustaste größe ändern
+	      resizable: 1,   	// man kann mit rechter maustaste grÃ¶ÃŸe Ã¤ndern
 	      sticky: 1;      	// immer sichtbar
     } flags;
 
     rect rcnonframe;      	// Bereich in der Mitte, der nicht vom Rahmen
-			  	// überdeckt ist
+			  	// Ã¼berdeckt ist
 
     struct prop_list *props;	// Property-Liste. Wird beim ersten wnd_prop_add()
 				// initialisiert.
 
-    int highest_propid;		// höchster property-id für prop_add()
+    int highest_propid;		// hÃ¶chster property-id fÃ¼r prop_add()
 
     enum callback_index { CB_MOUSE= 0, CB_PROPS, CB_STATUS, CB_KEYBD, CB_PAINT /*, CB_SIZE*/ };
 
