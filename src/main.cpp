@@ -447,7 +447,7 @@ class fluxTeapot: public fluxCgEffect
 		void setup()
 		{
 			int argc= 1;
-			char *argv[]= { "whatever", 0 };
+			char *argv[]= { (char*)"whatever", 0 };
 			glutInit(&argc, argv);
 			texture= loadTexture("data/mix.png");
 		}
