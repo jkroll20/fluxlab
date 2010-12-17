@@ -337,7 +337,7 @@ void fill_scanlines(shape_scanline *scanlines, rect clip, rect abspos, dword col
     x1= scanlines[i].x1 + (abspos.x<<16);
     x2= scanlines[i].x2 + (abspos.x<<16) + 65536;
 
-    if(x2>x1)
+    if((x2&0xFFFF0000)>(x1&0xFFFF0000))
     {
       if(x1 < clip.x<<16) x1= clip.x<<16;
       if(x2 > clip.rgt<<16) x2= clip.rgt<<16;
@@ -348,7 +348,7 @@ void fill_scanlines(shape_scanline *scanlines, rect clip, rect abspos, dword col
 #endif
 }
 
-const double fixed2float= 1.0L / 65536;
+static const double fixed2float= 1.0L / 65536;
 
 static void setpixeli_plain(int x, int y, byte colv[4])
 {
@@ -359,22 +359,22 @@ static void setpixeli_plain(int x, int y, byte colv[4])
     f= dword((0xFFFF-fx)*(0xFFFF-fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2i(xabs, yabs);
+    glVertex2f(xabs, yabs);
 
     f= dword((fx)*(0xFFFF-fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2i(xabs+1, yabs);
-
-    f= dword((0xFFFF-fx)*(fy)) >> 16;
-    colv[3]= f>0xFFFF? 0xFF: f>>8;
-    glColor4ubv(colv);
-    glVertex2i(xabs, yabs+1);
+    glVertex2f(xabs+1, yabs);
 
     f= dword((fx)*(fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2i(xabs+1, yabs+1);
+    glVertex2f(xabs+1, yabs+1);
+
+    f= dword((0xFFFF-fx)*(fy)) >> 16;
+    colv[3]= f>0xFFFF? 0xFF: f>>8;
+    glColor4ubv(colv);
+    glVertex2f(xabs, yabs+1);
 }
 
 
@@ -389,6 +389,8 @@ void setpixeli(int x, int y, dword color, rect clip)
     glDisable(GL_SCISSOR_TEST);
 }
 
+long outline_pixel_offset_x;
+
 extern "C"
 void plot_outline(pos *outline, int n, dword color, rect clip, pos p)
 {
@@ -399,19 +401,15 @@ void plot_outline(pos *outline, int n, dword color, rect clip, pos p)
     glGetIntegerv(GL_SCISSOR_BOX, old_scissor_box);
     glEnable(GL_SCISSOR_TEST);
     glScissor(clip.x,clip.y, clip.rgt-clip.x,clip.btm-clip.y);
-//    clip.y= viewport.btm-clip.y;
-//    clip.btm= viewport.btm-clip.btm;
-//    fill_rect(&clip, 0xFF0000);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 //    glColor3ub( (col>>16)&0xFF, (col>>8)&0xFF, (col)&0xFF );
-//    printf("%d points\n", n);
     glBegin(GL_POINTS);
     byte colv[]= { (col>>16)&0xFF, (col>>8)&0xFF, (col)&0xFF, 0 };
     for(int i= n-1; i>=0; i--)
     {
-	int x= outline[i].x+p.x, y= outline[i].y+p.y;
-	setpixeli_plain(x, y, colv);
+		int x= outline[i].x+p.x, y= outline[i].y+p.y;
+		setpixeli_plain(x+outline_pixel_offset_x, y, colv);
     }
     glEnd();
     if(!old_scissor_enabled) glDisable(GL_SCISSOR_TEST);

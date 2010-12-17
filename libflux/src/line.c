@@ -136,7 +136,7 @@ int cb_line(int x1,int y1, int x2,int y2, scanline_cb cb, void *cb_arg)
     y+= ya;
   }
 
-  cb(cb_arg, x, y);
+//  cb(cb_arg, x, y);
 
 //  ret.x= x; ret.y= y;
 //  return ret;

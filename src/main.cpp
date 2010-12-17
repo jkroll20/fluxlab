@@ -681,12 +681,41 @@ int SDLMouseButtonToFluxMouseButton(int button)
 	else return (button==1? 0: button==3? 1: 2);
 }
 
+
+void makeTestWindow()
+{
+    dword wnd= create_rect(NOPARENT, 100,100, 260,160, COL_WINDOW, ALIGN_LEFT|ALIGN_TOP);
+    dword frame= clone_frame("titleframe", wnd);
+    wnd_setprop(frame, "title", (prop_t)"test dialog");
+
+    clone_group("button", wnd, 0,0, 64,18, ALIGN_LEFT|ALIGN_TOP);
+
+    dword ellipse= create_ellipse(wnd, 0,0, 5000,100, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL, true,
+				  0.5,0.5, 0.5,0.5);
+
+    dblpos verts1[]= { 0.0,0.0, 1.0,0.25, 0.5,1.0 };
+    dword poly1= create_poly(wnd, 5000,0, 5000,100, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
+			     3, verts1);
+
+    dblpos verts2[]= { 0.25,0.0, 0.75,0.5, 0.25,0.75, 0.0,0.5 };
+    dword poly2= create_poly(wnd, 5000,0, 5000,100, COL_TITLE, ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
+			     4, verts2);
+}
+
 int main()
 {
 	SDL_Event events[32];
 	bool doQuit= false;
 
 	setVideoMode(gScreenWidth, gScreenHeight);
+
+	const unsigned char *glRenderer= glGetString(GL_RENDERER);
+	if(strstr((const char*)glRenderer, "Mesa"))
+	{
+		// workaround for off-by-one error in mesa renderer.
+		extern long outline_pixel_offset_x;
+		outline_pixel_offset_x= -1<<16;
+	}
 
 	for(int i= 0; i<0; i++)
 	{
@@ -695,8 +724,6 @@ int main()
 		wnd_setprop(t, "title", (prop_t)"Halbtransparent");
 	}
 
-	extern void testdlg(); testdlg();
-
 	gEffectWindows.createMagniFxWindow(100,50, 200,180, "Verzerrung");
 	gEffectWindows.createGenericFxWindow(250,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
 	gEffectWindows.createGenericFxWindow(100,300, 200,180, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
@@ -704,6 +731,8 @@ int main()
 	gEffectWindows.createPlasmaWindow(400,300, 200,180, "Plasma");
 	gEffectWindows.createTeapot(500,50, 200,180, "Teapot.");
 	gEffectWindows.createDisplacementWindow(600,150, 200,180, "Displacement");
+
+	makeTestWindow();
 
 	while(!doQuit)
 	{

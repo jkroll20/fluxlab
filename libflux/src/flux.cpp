@@ -3159,10 +3159,9 @@ int polyscanline_cb_left(scanline_cb_struct *arg, int x, int y)
     {
         shape_scanline& dest= arg->scanlines[(y>>16)];
 
-        if(x<dest.x1)
+        if(x+0x7FFF<dest.x1)
             dest.x1= x + 0x7FFF;
     }
-//    return 0; 		// keine outlinedots bei polys
     return ndot;
 }
 
@@ -3175,10 +3174,9 @@ int polyscanline_cb_right(scanline_cb_struct *arg, int x, int y)
     {
         shape_scanline& dest= arg->scanlines[(y>>16)];
 
-        if(x>dest.x2)
+        if(x-0x7FFF>dest.x2)
             dest.x2= x - 0x7FFF;
     }
-//    return 0;     // keine outlinedots bei polys
     return ndot;
 }
 
@@ -3366,6 +3364,7 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
 
 //      logmsg("cache w: %d - cache h: %d, nverts: %d", self->cache_size.x, self->cache_size.y, self->nverts);
 
+/*
             for(i= 0; i<self->nverts-1; i++)
             {
                 x1= int( (self->vertexes[i].x  *(width-1) ) )+abspos.x;
@@ -3383,7 +3382,6 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
             }
 
 
-/*
             x1= int( (self->vertexes[self->nverts-1].x  *(width-1) ) )+abspos.x;
             x2= int( (self->vertexes[0].x*(width-1) ) )+abspos.x;
             y1= int( (self->vertexes[self->nverts-1].y  *(height-1)) )+abspos.y;
@@ -4024,7 +4022,7 @@ void flux_mouse_event(double x, double y, int btn)
                                      handler, event,
                                      ix-h_abspos.x, iy-h_abspos.y, btn);
         }
-        //~ else if(btn==MOUSE_BTN2) resizing= true;
+        else if(btn==MOUSE_BTN2) resizing= true;
     }
 
     if(mouse.btns)
