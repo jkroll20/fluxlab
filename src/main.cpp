@@ -2,7 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include <flux.h>
+#include <sys/time.h>
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
 #define GL_GLEXT_PROTOTYPES
@@ -11,6 +11,7 @@
 #include <GL/glut.h>
 #include <Cg/cg.h>
 #include <Cg/cgGL.h>
+#include <flux.h>
 #include "fbo.h"
 
 using namespace std;
@@ -19,6 +20,15 @@ using namespace std;
 fbo<2, true, GL_RGB, true> gFBO;
 int gScreenWidth= 1024, gScreenHeight= 600;
 float gZoom= 1.0;
+double gTime;
+
+
+double getTime()
+{
+	timeval tv;
+	gettimeofday(&tv, 0);
+	return tv.tv_sec + tv.tv_usec*0.000001;
+}
 
 class CgState
 {
@@ -443,6 +453,7 @@ class fluxTeapot: public fluxCgEffect
 
 	private:
 		GLuint texture;
+		GLuint teapotList;
 
 		void setup()
 		{
@@ -450,6 +461,7 @@ class fluxTeapot: public fluxCgEffect
 			char *argv[]= { (char*)"whatever", 0 };
 			glutInit(&argc, argv);
 			texture= loadTexture("data/mix.png");
+
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
@@ -458,7 +470,7 @@ class fluxTeapot: public fluxCgEffect
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
 			glLoadIdentity();
-			gluPerspective(90*float(h)/w, float(w)/h, 0.01, 100);
+			gluPerspective(-90*float(h)/w, float(w)/h, 0.01, 100);
 			glMatrixMode(GL_MODELVIEW);
 			glPushMatrix();
 			glLoadIdentity();
@@ -467,11 +479,11 @@ class fluxTeapot: public fluxCgEffect
 			glClear(GL_DEPTH_BUFFER_BIT);
 
 			glTranslatef(0, 0, -9);
-			glRotatef(-22.5, 1, 0, 0);
+			glRotatef(22.5, 1, 0, 0);
 			glRotatef(SDL_GetTicks()*0.001*100, 0, 1, 0);
-			glRotatef(180, 1, 0, 0);
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, texture);
+
 			glEnable(GL_CULL_FACE);
 			glCullFace(GL_FRONT);
 			glEnable(GL_DEPTH_TEST);
@@ -481,6 +493,7 @@ class fluxTeapot: public fluxCgEffect
 			glutSolidTeapot(4);
 			glMatrixMode(GL_TEXTURE);
 			glLoadIdentity();
+
 			glDisable(GL_TEXTURE_2D);
 			glDisable(GL_CULL_FACE);
 			glDisable(GL_DEPTH_TEST);
@@ -566,7 +579,7 @@ void setVideoMode(int w, int h)
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
-	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 1);
+	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 0);
 	SDL_SetVideoMode(w, h, 0, SDL_OPENGL|SDL_RESIZABLE); //|SDL_FULLSCREEN);
 	int haveDoubleBuf, depthSize, swapControl;
 	SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &haveDoubleBuf);
@@ -597,6 +610,10 @@ void flux_tick()
 {
 	static float x0, y0, x1, y1;
 	static double lastUpdate;
+	static double accumTime;
+	static ulong accumFrames;
+	static double avgFPS;
+
 	aq_exec();
 	run_timers();
 
@@ -615,36 +632,47 @@ void flux_tick()
 	if(rc.rgt>gScreenWidth) rc.rgt= gScreenWidth, rc.x= rc.rgt-w;
 	if(rc.btm>gScreenHeight) rc.btm= gScreenHeight, rc.y= rc.btm-h;
 
-	double t= SDL_GetTicks()*0.001;
-	double f= (t-lastUpdate)*5;
-	lastUpdate= t;
+	double f= (gTime-lastUpdate)*5;
 	if(x0==x1) x0= 0, x1= gScreenWidth, y0= 0, y1= gScreenHeight;
 	x0+= (rc.x-x0)*f; x1+= (rc.rgt-x1)*f;
 	y0+= (rc.y-y0)*f; y1+= (rc.btm-y1)*f;
 
+	glScissor(x0, y0, x1, y1);
+	glEnable(GL_SCISSOR_TEST);
 	redraw_rect(&viewport);
 	redraw_cursor();
 	gFBO.disable();
+	glDisable(GL_SCISSOR_TEST);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, gScreenWidth, gScreenHeight, 0, -1000, 1000);
 
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
 
 	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
 	glColor3f(1,1,1);
 	glBegin(GL_QUADS);
 	double u0= double(x0)/gScreenWidth, v0= double(y0)/gScreenHeight,
 		   u1= double(x1)/gScreenWidth, v1= double(y1)/gScreenHeight;
-	glTexCoord2f(u0,v1); glVertex2f(0, 0);
-	glTexCoord2f(u1,v1); glVertex2f(viewport.rgt, 0);
-	glTexCoord2f(u1,v0); glVertex2f(viewport.rgt, viewport.btm);
-	glTexCoord2f(u0,v0); glVertex2f(0, viewport.btm);
+	glTexCoord2f(u0,v0); glVertex2f(0, 0);
+	glTexCoord2f(u1,v0); glVertex2f(viewport.rgt, 0);
+	glTexCoord2f(u1,v1); glVertex2f(viewport.rgt, viewport.btm);
+	glTexCoord2f(u0,v1); glVertex2f(0, viewport.btm);
 	glEnd();
-	glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
+
+	char ch[32]; snprintf(ch, 32, "%.2f", avgFPS);
+	draw_text(_font_getloc(FONT_DEFAULT), ch, gScreenWidth-45,gScreenHeight-14, viewport, 0xFFFFFF);
 
 	glDisable(GL_TEXTURE_2D);
 
 	checkglerror();
+
+	accumFrames++;
+	accumTime+= gTime-lastUpdate;
+	if(accumTime>=1.0) { avgFPS= accumFrames/accumTime; accumFrames= 0; accumTime= 0; }
+	lastUpdate= gTime;
 }
 
 int SDLMouseButtonToFluxMouseButton(int button)
@@ -667,7 +695,7 @@ int main()
 		wnd_setprop(t, "title", (prop_t)"Halbtransparent");
 	}
 
-//	extern void testdlg(); testdlg();
+	extern void testdlg(); testdlg();
 
 	gEffectWindows.createMagniFxWindow(100,50, 200,180, "Verzerrung");
 	gEffectWindows.createGenericFxWindow(250,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
@@ -679,7 +707,9 @@ int main()
 
 	while(!doQuit)
 	{
-		ulong startTicks= SDL_GetTicks();
+		gTime= getTime();
+
+		double startTicks= gTime;
 		SDL_PumpEvents();
 		int numEvents= SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_ALLEVENTS);
 		for(int i= 0; i<numEvents; i++)
@@ -717,10 +747,10 @@ int main()
 		flux_tick();
 		SDL_GL_SwapBuffers();
 
-		ulong frametime= SDL_GetTicks()-startTicks;
-		int delay= (1000/100) - frametime;
-		if(delay<1) delay= 1;
-		SDL_Delay(delay);
+		double frametime= getTime() - gTime;
+		double delay= (1.0/100) - frametime;
+		if(delay<0.00001) delay= 0.00001;
+		usleep(useconds_t(delay*1000000));
 	}
 
 	SDL_Quit();

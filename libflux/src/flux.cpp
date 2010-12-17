@@ -3128,19 +3128,9 @@ void prim_get_abspos(primitive *p, rect *dest, bool clip_to_parent)
 
 int scanline_callback(scanline_cb_struct *arg, int x, int y)
 {
-    /*
-      static int ndot= 0;
-
-      if(!arg)
-      {
-        ndot= 0;
-        return 0;
-      }
-    */
     int ndot= arg->n_outlinedots++;
-
-    arg->outlinedots[ndot].x= x;
-    arg->outlinedots[ndot].y= y;
+    arg->outlinedots[ndot].x= x + 0x7FFF;
+    arg->outlinedots[ndot].y= y + 0x7FFF;
 
     if(arg->fill)
     {
@@ -3149,28 +3139,11 @@ int scanline_callback(scanline_cb_struct *arg, int x, int y)
             shape_scanline& dest= arg->scanlines[(y>>16)];
 
             if(x<dest.x1)
-                dest.x1= x;
+                dest.x1= x + 0x7FFF;
 
             if(x>dest.x2)
-                dest.x2= x;
+                dest.x2= x - 0x7FFF;
         }
-
-        /*
-            y= y + ((y&32768)<<1) & 0xFFFF0000;
-
-            if(y>>16 >= 0 && y>>16 < arg->height)
-            {
-              shape_scanline& dest= arg->scanlines[(y>>16)];
-
-              x= x + ((x&32768)<<1) & 0xFFFF0000;
-
-              if(x<dest.x1)
-                dest.x1= x;
-
-              if(x>dest.x2)
-                dest.x2= x;
-            }
-        */
     }
 
     return ndot;
@@ -3179,26 +3152,34 @@ int scanline_callback(scanline_cb_struct *arg, int x, int y)
 
 int polyscanline_cb_left(scanline_cb_struct *arg, int x, int y)
 {
-    if(y>>16 >= 0 && y>>16 < arg->height)
+    int ndot= arg->n_outlinedots++;
+    arg->outlinedots[ndot].x= x + 0x7FFF;
+    arg->outlinedots[ndot].y= y + 0x7FFF;
+	if(y>>16 >= 0 && y>>16 < arg->height)
     {
         shape_scanline& dest= arg->scanlines[(y>>16)];
 
         if(x<dest.x1)
-            dest.x1= x;
+            dest.x1= x + 0x7FFF;
     }
-    return 0;     // keine outlinedots bei polys
+//    return 0; 		// keine outlinedots bei polys
+    return ndot;
 }
 
 int polyscanline_cb_right(scanline_cb_struct *arg, int x, int y)
 {
+    int ndot= arg->n_outlinedots++;
+    arg->outlinedots[ndot].x= x + 0x7FFF;
+    arg->outlinedots[ndot].y= y + 0x7FFF;
     if(y>>16 >= 0 && y>>16 < arg->height)
     {
         shape_scanline& dest= arg->scanlines[(y>>16)];
 
         if(x>dest.x2)
-            dest.x2= x;
+            dest.x2= x - 0x7FFF;
     }
-    return 0;     // keine outlinedots bei polys
+//    return 0;     // keine outlinedots bei polys
+    return ndot;
 }
 
 
@@ -3303,6 +3284,7 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
 
             shape_scanline *scanlines= self->scanline_cache;
 
+            // refresh scanline cache if necessary
             if(self->cache_size.x!=width || self->cache_size.y!=height)
             {
                 if(self->scanline_cache) free(self->scanline_cache);
@@ -3311,6 +3293,7 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
 
                 int ndots= 0; //= abspos.btm-abspos.y;
 
+                // count number of outline dots
                 for(i= 0; i<self->nverts-1; i++)
                 {
                     x1= int( (self->vertexes[i].x  *width) );
@@ -3326,6 +3309,7 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
                 y2= int( (self->vertexes[0].y*height) );
                 ndots+= max( abs(x2-x1), abs(y2-y1) )+1;
 
+                // reallocate outline dot cache
                 if(self->outline_cache) free(self->outline_cache);
                 self->outline_cache= (pos *)malloc(ndots*2*sizeof(pos));
 
@@ -3376,11 +3360,9 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
                 self->cache_size.y= height;
             }
 
-            /*
                   pos fpos= { abspos.x<<16, abspos.y<<16 };
                   plot_outline(self->outline_cache, self->n_outlinedots,
                                self->color, *upd, fpos);
-            */
 
 //      logmsg("cache w: %d - cache h: %d, nverts: %d", self->cache_size.x, self->cache_size.y, self->nverts);
 
@@ -3397,17 +3379,18 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
 
 //        line(x1+fpos.x,y1+fpos.y, x2+fpos.x,y2+fpos.y, self->color);
 //        line(p1.x<<16,p1.y<<16, p2.x<<16,p2.y<<16, col);
-                line(x1<<16,y1<<16, x2<<16,y2<<16, col, *upd);
+//                line(x1<<16,y1<<16, x2<<16,y2<<16, col, *upd);
             }
 
 
+/*
             x1= int( (self->vertexes[self->nverts-1].x  *(width-1) ) )+abspos.x;
             x2= int( (self->vertexes[0].x*(width-1) ) )+abspos.x;
             y1= int( (self->vertexes[self->nverts-1].y  *(height-1)) )+abspos.y;
             y2= int( (self->vertexes[0].y*(height-1)) )+abspos.y;
 
             line(x1<<16,y1<<16, x2<<16,y2<<16, col, *upd);
-
+*/
 
             if(self->filled)
                 fill_scanlines(scanlines, *upd, abspos, col);

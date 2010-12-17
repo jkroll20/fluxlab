@@ -164,7 +164,6 @@ void draw_text(font *font, char *text, int sx,int sy, rect clp, dword col)
 	    	x= sx;
 	    	break;
 	    case ' ':
-		//~ x+= font->widths['x'-33];
 	    	x+= font->widths['-'-33];
 	    	break;
 	}
@@ -382,7 +381,6 @@ static void setpixeli_plain(int x, int y, byte colv[4])
 extern "C"
 void setpixeli(int x, int y, dword color, rect clip)
 {
-    return;	// disabled
     glEnable(GL_SCISSOR_TEST);
     glScissor(clip.x,viewport.btm-clip.btm, clip.rgt-clip.x,clip.btm-clip.y);
     glBegin(GL_POINTS);
@@ -394,11 +392,20 @@ void setpixeli(int x, int y, dword color, rect clip)
 extern "C"
 void plot_outline(pos *outline, int n, dword color, rect clip, pos p)
 {
-    return;	// disabled
     dword col= (IS_SYSCOL(color)? syscol_table[(color-1)&31]: color);
+    int old_scissor_box[4];
+    int old_scissor_enabled;
+    glGetIntegerv(GL_SCISSOR_TEST, &old_scissor_enabled);
+    glGetIntegerv(GL_SCISSOR_BOX, old_scissor_box);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(clip.x,viewport.btm-clip.btm, clip.rgt-clip.x,clip.btm-clip.y);
-    //~ glColor3ub( (col>>16)&0xFF, (col>>8)&0xFF, (col)&0xFF );
+    glScissor(clip.x,clip.y, clip.rgt-clip.x,clip.btm-clip.y);
+//    clip.y= viewport.btm-clip.y;
+//    clip.btm= viewport.btm-clip.btm;
+//    fill_rect(&clip, 0xFF0000);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//    glColor3ub( (col>>16)&0xFF, (col>>8)&0xFF, (col)&0xFF );
+//    printf("%d points\n", n);
     glBegin(GL_POINTS);
     byte colv[]= { (col>>16)&0xFF, (col>>8)&0xFF, (col)&0xFF, 0 };
     for(int i= n-1; i>=0; i--)
@@ -407,7 +414,8 @@ void plot_outline(pos *outline, int n, dword color, rect clip, pos p)
 	setpixeli_plain(x, y, colv);
     }
     glEnd();
-    glDisable(GL_SCISSOR_TEST);
+    if(!old_scissor_enabled) glDisable(GL_SCISSOR_TEST);
+    glScissor(old_scissor_box[0], old_scissor_box[1], old_scissor_box[2], old_scissor_box[3]);
 }
 
 
