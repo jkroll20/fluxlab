@@ -298,6 +298,7 @@ class fluxMagnifyEffect: public fluxCgEffect
 	private:
 		enum { textureSize= 512 };
 		GLuint displacementTexture;
+		CGparameter cgIntensity;
 
 		bool setup()
 		{
@@ -316,6 +317,8 @@ class fluxMagnifyEffect: public fluxCgEffect
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+			cgIntensity= cgGetNamedParameter(fragProgram, "intensity");
+
 			return checkglerror();
 		}
 
@@ -324,6 +327,9 @@ class fluxMagnifyEffect: public fluxCgEffect
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, displacementTexture);
 			glActiveTexture(GL_TEXTURE0);
+			cgGLBindProgram(fragProgram);
+			cgGLSetParameter1f(cgIntensity, 1.0 * sqrt((absPos->rgt-absPos->x)*(absPos->btm-absPos->y))/sqrt(200*180));
+			cgUpdateProgramParameters(fragProgram);
 			fluxCgEffect::paint(self, absPos, dirtyRects);
 		}
 
@@ -428,9 +434,9 @@ class fluxTeapot: public fluxCgEffect
 
 	private:
 		GLuint texture;
-		CGparameter modelViewProj;
-		CGparameter invWindowSize;
-		CGparameter intensity;
+		CGparameter cgModelViewProj;
+		CGparameter cgInvWindowSize;
+		CGparameter cgIntensity;
 
 		void setup()
 		{
@@ -446,14 +452,14 @@ class fluxTeapot: public fluxCgEffect
 
 			loadVertexProgram("cg/teapot.cg", "teapotVertexProgram");
 
-			modelViewProj= cgGetNamedParameter(vertProgram, "modelViewProj");
-			if(!modelViewProj) printf("couldn't find modelViewProj parameter.\n");
+			cgModelViewProj= cgGetNamedParameter(vertProgram, "modelViewProj");
+			if(!cgModelViewProj) printf("couldn't find cgModelViewProj parameter.\n");
 
-			invWindowSize= cgGetNamedParameter(fragProgram, "invWindowSize");
-			if(!invWindowSize) printf("couldn't find invWindowSize parameter.\n");
+			cgInvWindowSize= cgGetNamedParameter(fragProgram, "invWindowSize");
+			if(!cgInvWindowSize) printf("couldn't find cgInvWindowSize parameter.\n");
 
-			intensity= cgGetNamedParameter(fragProgram, "intensity");
-			if(!intensity) printf("couldn't find intensity parameter.\n");
+			cgIntensity= cgGetNamedParameter(fragProgram, "intensity");
+			if(!cgIntensity) printf("couldn't find intensity parameter.\n");
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
@@ -470,8 +476,8 @@ class fluxTeapot: public fluxCgEffect
 
 			cgGLEnableProfile(gCgState.getFragmentProfile());
 			cgGLBindProgram(fragProgram);
-			cgSetParameter2f(invWindowSize, 1.0/gScreenWidth, (gIsMesa? -1.0: 1.0)/gScreenHeight);
-			cgSetParameter1f(intensity, 0.0325 * w*h/(200*180));
+			cgSetParameter2f(cgInvWindowSize, 1.0/gScreenWidth, (gIsMesa? -1.0: 1.0)/gScreenHeight);
+			cgSetParameter1f(cgIntensity, /*0.0325*/0.05 * sqrt(w*h)/sqrt(200*180));
 			cgUpdateProgramParameters(fragProgram);
 			cgGLEnableProfile(gCgState.getVertexProfile());
 			cgGLBindProgram(vertProgram);
@@ -492,7 +498,7 @@ class fluxTeapot: public fluxCgEffect
 			glRotatef((gTime-gStartTime)*50, 0, 1, 0);
 			glRotatef(-90, 1, 0, 0);
 
-			cgGLSetStateMatrixParameter(modelViewProj,
+			cgGLSetStateMatrixParameter(cgModelViewProj,
 								CG_GL_MODELVIEW_PROJECTION_MATRIX,
 								CG_GL_MATRIX_IDENTITY);
 			cgUpdateProgramParameters(vertProgram);
@@ -594,11 +600,13 @@ class fluxDisplacementEffect: public fluxCgEffect
 
 	private:
 		GLuint displacementTexture;
+		CGparameter cgIntensity;
 
 		void setup()
 		{
 			displacementTexture= loadTexture("data/metal.png");
 			loadFragmentProgram("cg/displace.cg", "displaceHeightmap");
+			cgIntensity= cgGetNamedParameter(fragProgram, "intensity");
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
@@ -606,6 +614,9 @@ class fluxDisplacementEffect: public fluxCgEffect
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, displacementTexture);
 			glActiveTexture(GL_TEXTURE0);
+			cgGLBindProgram(fragProgram);
+			cgGLSetParameter1f(cgIntensity, 0.25 * sqrt((absPos->rgt-absPos->x)*(absPos->btm-absPos->y))/sqrt(200*180));
+			cgUpdateProgramParameters(fragProgram);
 			fluxCgEffect::paint(self, absPos, dirtyRects);
 		}
 };

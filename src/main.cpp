@@ -279,7 +279,7 @@ int main()
 
 		double frametime= getTime() - time;
 		double delay= (1.0/100) - frametime;
-		if(delay<0.0001) delay= 0.0001;
+		if(delay<0.001) delay= 0.001;
 		usleep(useconds_t(delay*1000000));
 	}
 

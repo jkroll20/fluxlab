@@ -1361,13 +1361,13 @@ void create_titleframe()
   create_rect(idtitlegrp, 0,0, 0,0, INVISIBLE, ALIGN_TOP|ALIGN_BOTTOM|ALIGN_LEFT|ALIGN_RIGHT);
 
   dword idtbar= create_group("titlebar");
-  dword tbk= create_rect(idtbar, 0,0, MAXSCALE,font_height(FONT_DEFAULT)+6, COL_TITLE, WREL);
+  dword tbk= create_rect(idtbar, 0,0, MAXSCALE,font_height(FONT_DEFAULT)+8, COL_TITLE, WREL);
   create_text(tbk, 0,0, 0,font_height(FONT_DEFAULT),
               "", COL_TEXT, FONT_DEFAULT, ALIGN_HCENTER|ALIGN_VCENTER);
   create_rect(tbk, 0,0, MAXSCALE,1, COL_FRAMEHI|TRANSL_1, ALIGN_BOTTOM|WREL);
   create_rect(tbk, 0,1, MAXSCALE,1, COL_FRAMELO|TRANSL_2, ALIGN_BOTTOM|WREL);
 
-  dword bclose= clone_group("titlebtn", tbk, 3,0, 12,12, ALIGN_RIGHT|ALIGN_VCENTER);
+  dword bclose= clone_group("titlebtn", tbk, 4,0, 14,14, ALIGN_RIGHT|ALIGN_VCENTER);
   wnd_setprop(bclose, "font", (prop_t)FONT_DEFAULT);
   wnd_setprop(bclose, "text", (prop_t)"x");
   wnd_setprop(bclose, "on_click", (prop_t)btn_close);
