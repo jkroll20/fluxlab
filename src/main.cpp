@@ -540,6 +540,7 @@ class fluxTeapot: public fluxCgEffect
 			glMatrixMode(GL_TEXTURE);
 			glScalef(.125, .125, 1);
 			glMatrixMode(GL_MODELVIEW);
+			glEnable(GL_DITHER);
 #ifdef GLUTPOT
 			glutSolidTeapot(4);
 #else
@@ -574,6 +575,44 @@ class fluxTeapot: public fluxCgEffect
 			glDisable(GL_TEXTURE_2D);
 		}
 };
+
+
+class fluxBackgroundImage: public fluxCgEffect
+{
+	public:
+		fluxBackgroundImage(dword fluxHandleToAttachTo)
+			: fluxCgEffect(fluxHandleToAttachTo)
+		{
+			setup();
+		}
+
+//		fluxBackgroundImage(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
+//			: fluxCgEffect(x,y, width,height, parent, alignment)
+//		{
+//			setup();
+//		}
+
+	private:
+		GLuint texture1, texture2;
+
+		void setup()
+		{
+			texture1= loadTexture("data/moonrisemk_connelley.png");
+			texture2= loadTexture("data/tex1.png");
+			loadFragmentProgram("cg/colors.cg", "textureUnit1");
+		}
+
+		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
+		{
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, texture1);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, texture2);
+			glActiveTexture(GL_TEXTURE0);
+			fluxCgEffect::paint(self, absPos, dirtyRects);
+		}
+};
+
 
 
 class fluxDisplacementEffect: public fluxCgEffect
@@ -804,6 +843,8 @@ int main()
 	gEffectWindows.createPlasmaWindow(400,300, 200,180, "Plasma");
 	gEffectWindows.createTeapot(500,50, 280,240, "Teapot");
 	gEffectWindows.createDisplacementWindow(600,150, 200,180, "Displacement");
+//	gEffectWindows.createDisplacementWindow(600,150, 200,180, "Displacement");
+	fluxBackgroundImage bg(0);
 
 	makeTestWindow();
 

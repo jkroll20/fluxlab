@@ -15,6 +15,7 @@ float3 invertLightness(float2 imgTexCoord: TEXCOORD0,
 {
 	float3 imgTexel= (float3)tex2D(imgTex, imgTexCoord);
 	float len= length(imgTexel);
+	if(!len) return float3(1);
 	return imgTexel * ((1.0-len)/len);
 }
 
@@ -24,3 +25,17 @@ float3 negate(float2 imgTexCoord: TEXCOORD0,
 	return 1.0 - (float3)tex2D(imgTex, imgTexCoord);
 }
 
+float3 textureUnit1(float2 imgTexCoord: TEXCOORD1,
+					sampler2D imgTex: TEXUNIT1): COLOR
+{
+	return (float3)tex2D(imgTex, imgTexCoord);
+}
+
+
+float3 textureUnit1Detail(float2 detailTexCoord: TEXCOORD0,
+						  float2 imgTexCoord: TEXCOORD1,
+						  sampler2D imgTex: TEXUNIT1,
+						  sampler2D detailTex: TEXUNIT2): COLOR
+{
+	return (float3)tex2D(imgTex, imgTexCoord) + ( tex2D(detailTex, detailTexCoord*10)-.5 );
+}

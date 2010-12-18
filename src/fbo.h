@@ -234,7 +234,7 @@ template<int NTEXTURES= 1,
             {
                 // initialize depth renderbuffer
                 glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, depth_renderbuffer);
-                glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT16, width, height);
+                glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT/*16*/, width, height);
             }
 
             if(USE_DEPTHTEXTURES)

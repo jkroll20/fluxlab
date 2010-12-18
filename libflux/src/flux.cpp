@@ -71,7 +71,7 @@ bool quit= false;
 
 dword syscol_table[NSYSCOLORS]=
 {
-    0x204020,
+    0x202020,
     0x505050,
     0xFFFFFF,
     0x606060,
