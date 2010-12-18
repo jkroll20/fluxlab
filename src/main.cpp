@@ -175,15 +175,13 @@ int SDLMouseButtonToFluxMouseButton(int button)
 }
 
 
-void makeTestWindow()
+void makeShapeWindow(int x, int y)
 {
-    dword wnd= create_rect(NOPARENT, 100,100, 260,160, COL_WINDOW, ALIGN_LEFT|ALIGN_TOP);
+    dword wnd= create_rect(NOPARENT, x,y, 260,160, COL_WINDOW, ALIGN_LEFT|ALIGN_TOP);
     dword frame= clone_frame("titleframe", wnd);
-    wnd_setprop(frame, "title", (prop_t)"test dialog");
+    wnd_setprop(frame, "title", (prop_t)"Shapes");
 
-    clone_group("button", wnd, 0,0, 64,18, ALIGN_LEFT|ALIGN_TOP);
-
-    dword ellipse= create_ellipse(wnd, 0,0, 5000,100, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL, true,
+    dword ellipse= create_ellipse(wnd, 0,0, 5000,10000, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL|HREL, true,
 				  0.5,0.5, 0.5,0.5);
 
     dblpos verts1[]= { {0.0,0.0}, {1.0,0.25}, {0.5,1.0} };
@@ -211,29 +209,36 @@ class fluxEffectButton
 
 		void onClick()
 		{
+			int width= 200, height= 180;
+			int x, y;
+			randPos(width, height, x, y);
 			switch(type)
 			{
 				case 0:
-					gEffectWindows.createGenericFxWindow(250,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
+					gEffectWindows.createGenericFxWindow(x,y, width,height, "Farbton Invertieren", "cg/colors.cg", "invertHue");
 					break;
 				case 1:
-					gEffectWindows.createGenericFxWindow(100,300, 200,180, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
+					gEffectWindows.createGenericFxWindow(x,y, width,height, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
 					break;
 				case 2:
-					gEffectWindows.createGenericFxWindow(300,300, 200,180, "Negativ", "cg/colors.cg", "negate");
+					gEffectWindows.createGenericFxWindow(x,y, width,height, "Negativ", "cg/colors.cg", "negate");
 					break;
 				case 3:
-					gEffectWindows.addFxWindow(new fluxMagnifyEffect(100,50, 200,180));
+					gEffectWindows.addFxWindow(new fluxMagnifyEffect(x,y, width,height));
 					break;
 				case 4:
-					gEffectWindows.addFxWindow(new fluxPlasmaEffect(400,300, 200,180));
+					gEffectWindows.addFxWindow(new fluxPlasmaEffect(x,y, width,height));
 					break;
 				case 5:
-					gEffectWindows.addFxWindow(new fluxTeapot(500,50, 280,240));
+					width= 280; height= 240;
+					randPos(width, height, x, y);
+					gEffectWindows.addFxWindow(new fluxTeapot(x,y, width,height));
 					break;
 				case 6:
-					gEffectWindows.addFxWindow(new fluxDisplacementEffect(600,150, 200,180));
+					gEffectWindows.addFxWindow(new fluxDisplacementEffect(x,y, width,height));
 					break;
+				case 7:
+					makeShapeWindow(x, y);
 			}
 		}
 
@@ -243,7 +248,8 @@ class fluxEffectButton
 
 		void randPos(int width, int height, int &x, int &y)
 		{
-
+			x= rand()%(gScreenWidth-width-4);
+			y= rand()%(gScreenHeight-height-(font_height(FONT_DEFAULT)+8+4));
 		}
 
 //typedef void (*btn_cbclick)(int id, bool btndown, int whichbtn);
@@ -291,9 +297,8 @@ int main()
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Plasma", 4),
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Teapot", 5),
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Displacement", 6),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Shapes", 7),
 	};
-
-	makeTestWindow();
 
 	while(!doQuit)
 	{
