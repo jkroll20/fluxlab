@@ -6,8 +6,8 @@ float3 main(float2 imgTexCoord: TEXCOORD0,
 {
 	float4 displacementTexel= (tex2D(dispTex, dispTexCoord)-.5) * (1.0/16);
 	float3 imgTexel= tex2D(imgTex, imgTexCoord-(float2(displacementTexel.r, displacementTexel.a)));
-	imgTexel-= displacementTexel.r;
-	imgTexel-= displacementTexel.a;
+	imgTexel-= displacementTexel.r*2;
+	imgTexel-= displacementTexel.a*2;
 	return imgTexel;
 }
 
@@ -24,7 +24,7 @@ float3 displaceHeightmap(float2 imgTexCoord: TEXCOORD0,
 		   disp10= tex2D(dispTex, dispTexCoord+float2(d, 0)),
 		   disp11= tex2D(dispTex, dispTexCoord+float2(d, d));
 	float2 disp= float2(disp01.r-disp00.r, disp10.r-disp00.r);
-	float3 imgTexel= tex2D( imgTex, imgTexCoord + disp*.1 ); // + abs(disp.x*.2)-abs(disp.y*.2);
+	float3 imgTexel= tex2D( imgTex, imgTexCoord + disp*.1 ) + abs(disp.x*.2)-abs(disp.y*.2);
 	return imgTexel;
 }
 

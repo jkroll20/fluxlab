@@ -13,6 +13,7 @@
 #include <Cg/cgGL.h>
 #include <flux.h>
 #include "fbo.h"
+#include "fast_teapot.c"
 
 using namespace std;
 
@@ -20,8 +21,8 @@ using namespace std;
 fbo<2, true, GL_RGB, true> gFBO;
 int gScreenWidth= 1024, gScreenHeight= 600;
 float gZoom= 1.0;
-double gTime;
-
+double gTime, gStartTime;
+bool gIsMesa= false;
 
 double getTime()
 {
@@ -140,7 +141,7 @@ class fluxCgEffect
 			return fluxHandle;
 		}
 
-		bool loadProgram(const char *filename, const char *entryFunc= "main")
+		bool loadFragmentProgram(const char *filename, const char *entryFunc= "main")
 		{
 			fragProgram= gCgState.loadFragmentProgramFromFile(filename, entryFunc);
 			cgCompileProgram(fragProgram);
@@ -148,8 +149,17 @@ class fluxCgEffect
 			return (programLoaded= gCgState.checkForCgError("binding fragment program"));
 		}
 
+		bool loadVertexProgram(const char *filename, const char *entryFunc= "main")
+		{
+			vertProgram= gCgState.loadVertexProgramFromFile(filename, entryFunc);
+			cgCompileProgram(vertProgram);
+			cgGLBindProgram(vertProgram);
+			return (programLoaded= gCgState.checkForCgError("binding vertex program"));
+		}
+
 	protected:
 		CGprogram fragProgram;
+		CGprogram vertProgram;
 		bool programLoaded;
 		dword fluxHandle;
 		bool fluxHandleWasAttached;
@@ -237,7 +247,7 @@ class fluxEffectWindowContainer
 		{
 			fluxCgEffect *effect= new fluxCgEffect(x,y, width,height);
 			wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
-			effect->loadProgram(cgFilename, entryFunc);
+			effect->loadFragmentProgram(cgFilename, entryFunc);
 			effectWindows.push_back(effect);
 			return *effect;
 		}
@@ -307,7 +317,7 @@ class fluxMagnifyEffect: public fluxCgEffect
 			float blob[textureSize*textureSize];
 			float dispPixels[textureSize*textureSize*2];
 
-			if(!loadProgram("cg/displace.cg")) return false;
+			if(!loadFragmentProgram("cg/displace.cg")) return false;
 
 			// create displacement texture
 			makeSmoothBlob(textureSize, blob);
@@ -392,7 +402,7 @@ class fluxPlasmaEffect: public fluxCgEffect
 
 		void setup()
 		{
-			loadProgram("cg/plasma.cg");
+			loadFragmentProgram("cg/plasma.cg");
 			cgTime= cgGetNamedParameter(fragProgram, "time");
 			cgPlasmaCoord= cgGetNamedParameter(fragProgram, "plasmaCoord");
 		}
@@ -403,7 +413,7 @@ class fluxPlasmaEffect: public fluxCgEffect
 
 			cgGLEnableProfile(gCgState.getFragmentProfile());
 			cgGLBindProgram(fragProgram);
-			double time= SDL_GetTicks()*0.001;
+			double time= gTime-gStartTime;
 			cgGLSetParameter1f(cgTime, time);
 			cgGLSetParameter2f(cgPlasmaCoord, sin(time*0.23)*2, sin(time*0.258)*2);
 			cgUpdateProgramParameters(fragProgram);
@@ -453,24 +463,58 @@ class fluxTeapot: public fluxCgEffect
 
 	private:
 		GLuint texture;
-		GLuint teapotList;
+		CGparameter modelViewProj;
+		CGparameter invWindowSize;
+		CGparameter intensity;
 
 		void setup()
 		{
+#ifdef FLUXPOT
 			int argc= 1;
-			char *argv[]= { (char*)"whatever", 0 };
+			char *argv[]= { (char*)"main", 0 };
 			glutInit(&argc, argv);
+#endif
+
 			texture= loadTexture("data/mix.png");
 
+			loadFragmentProgram("cg/teapot.cg");
+
+			loadVertexProgram("cg/teapot.cg", "teapotVertexProgram");
+
+			modelViewProj= cgGetNamedParameter(vertProgram, "modelViewProj");
+			if(!modelViewProj) printf("couldn't find modelViewProj parameter.\n");
+
+			invWindowSize= cgGetNamedParameter(fragProgram, "invWindowSize");
+			if(!invWindowSize) printf("couldn't find invWindowSize parameter.\n");
+
+			intensity= cgGetNamedParameter(fragProgram, "intensity");
+			if(!intensity) printf("couldn't find intensity parameter.\n");
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
 		{
 			float w= absPos->rgt-absPos->x, h= absPos->btm-absPos->y;
+
+			gFBO.select_framebuffer_texture(1);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
+
+			glBegin(GL_QUADS);
+			drawRect(*absPos);
+			glEnd();
+
+			cgGLEnableProfile(gCgState.getFragmentProfile());
+			cgGLBindProgram(fragProgram);
+			cgSetParameter2f(invWindowSize, 1.0/gScreenWidth, (gIsMesa? -1.0: 1.0)/gScreenHeight);
+			cgSetParameter1f(intensity, 0.0325 * w*h/(200*180));
+			cgUpdateProgramParameters(fragProgram);
+			cgGLEnableProfile(gCgState.getVertexProfile());
+			cgGLBindProgram(vertProgram);
+
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
 			glLoadIdentity();
-			gluPerspective(-90*float(h)/w, float(w)/h, 0.01, 100);
+			gluPerspective(-90*float(3)/4, float(4)/3, 0.01, 100);
 			glMatrixMode(GL_MODELVIEW);
 			glPushMatrix();
 			glLoadIdentity();
@@ -478,31 +522,56 @@ class fluxTeapot: public fluxCgEffect
 
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			glTranslatef(0, 0, -9);
+			glTranslatef(0, -1.2, -5);
 			glRotatef(22.5, 1, 0, 0);
-			glRotatef(SDL_GetTicks()*0.001*100, 0, 1, 0);
-			glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, texture);
+			glRotatef((gTime-gStartTime)*50, 0, 1, 0);
+			glRotatef(-90, 1, 0, 0);
 
+			cgGLSetStateMatrixParameter(modelViewProj,
+								CG_GL_MODELVIEW_PROJECTION_MATRIX,
+								CG_GL_MATRIX_IDENTITY);
+			cgUpdateProgramParameters(vertProgram);
+
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
 			glEnable(GL_CULL_FACE);
 			glCullFace(GL_FRONT);
 			glEnable(GL_DEPTH_TEST);
 			glMatrixMode(GL_TEXTURE);
 			glScalef(.125, .125, 1);
 			glMatrixMode(GL_MODELVIEW);
+#ifdef GLUTPOT
 			glutSolidTeapot(4);
+#else
+			// Evaluator enables for fast teapot
+			glEnable(GL_MAP2_VERTEX_3);
+			glEnable(GL_AUTO_NORMAL);
+			fastTeapot(4);
+#endif
 			glMatrixMode(GL_TEXTURE);
 			glLoadIdentity();
-
-			glDisable(GL_TEXTURE_2D);
 			glDisable(GL_CULL_FACE);
-			glDisable(GL_DEPTH_TEST);
 
 			glMatrixMode(GL_MODELVIEW);
 			glPopMatrix();
 			glMatrixMode(GL_PROJECTION);
 			glPopMatrix();
 			glViewport(0,0, gScreenWidth, gScreenHeight);
+			glDisable(GL_DEPTH_TEST);
+			cgGLDisableProfile(gCgState.getFragmentProfile());
+			cgGLDisableProfile(gCgState.getVertexProfile());
+			glDisable(GL_DITHER);
+
+			glViewport(0,0, gScreenWidth,gScreenHeight);
+
+			gFBO.select_framebuffer_texture(0);
+			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[1]);
+			glBegin(GL_QUADS);
+			for(const rectlist *r= dirtyRects; r; r= r->next)
+				drawRect(*r->self);
+			glEnd();
+
+			glDisable(GL_TEXTURE_2D);
 		}
 };
 
@@ -528,7 +597,7 @@ class fluxDisplacementEffect: public fluxCgEffect
 		void setup()
 		{
 			displacementTexture= loadTexture("data/metal.png");
-			loadProgram("cg/displace.cg", "displaceHeightmap");
+			loadFragmentProgram("cg/displace.cg", "displaceHeightmap");
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
@@ -693,11 +762,11 @@ void makeTestWindow()
     dword ellipse= create_ellipse(wnd, 0,0, 5000,100, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL, true,
 				  0.5,0.5, 0.5,0.5);
 
-    dblpos verts1[]= { 0.0,0.0, 1.0,0.25, 0.5,1.0 };
+    dblpos verts1[]= { {0.0,0.0}, {1.0,0.25}, {0.5,1.0} };
     dword poly1= create_poly(wnd, 5000,0, 5000,100, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
 			     3, verts1);
 
-    dblpos verts2[]= { 0.25,0.0, 0.75,0.5, 0.25,0.75, 0.0,0.5 };
+    dblpos verts2[]= { {0.25,0.0}, {0.75,0.5}, {0.25,0.75}, {0.0,0.5} };
     dword poly2= create_poly(wnd, 5000,0, 5000,100, COL_TITLE, ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
 			     4, verts2);
 }
@@ -706,12 +775,16 @@ int main()
 {
 	SDL_Event events[32];
 	bool doQuit= false;
+	bool isPaused= false;
+	double time;
 
+	gStartTime= getTime();
 	setVideoMode(gScreenWidth, gScreenHeight);
 
 	const unsigned char *glRenderer= glGetString(GL_RENDERER);
 	if(strstr((const char*)glRenderer, "Mesa"))
 	{
+		gIsMesa= true;
 		// workaround for off-by-one error in mesa renderer.
 		extern long outline_pixel_offset_x;
 		outline_pixel_offset_x= -1<<16;
@@ -729,16 +802,17 @@ int main()
 	gEffectWindows.createGenericFxWindow(100,300, 200,180, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
 	gEffectWindows.createGenericFxWindow(300,300, 200,180, "Negativ", "cg/colors.cg", "negate");
 	gEffectWindows.createPlasmaWindow(400,300, 200,180, "Plasma");
-	gEffectWindows.createTeapot(500,50, 200,180, "Teapot.");
+	gEffectWindows.createTeapot(500,50, 280,240, "Teapot");
 	gEffectWindows.createDisplacementWindow(600,150, 200,180, "Displacement");
 
 	makeTestWindow();
 
 	while(!doQuit)
 	{
-		gTime= getTime();
+		time= getTime();
+		if(!isPaused)
+			gTime= time;
 
-		double startTicks= gTime;
 		SDL_PumpEvents();
 		int numEvents= SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_ALLEVENTS);
 		for(int i= 0; i<numEvents; i++)
@@ -749,6 +823,8 @@ int main()
 				case SDL_KEYDOWN:
 					if(ev.key.keysym.sym==SDLK_ESCAPE)
 						doQuit= true;
+					else if(ev.key.keysym.sym==' ')
+						isPaused= !isPaused;
 					break;
 				case SDL_QUIT:
 					doQuit= true;
@@ -776,9 +852,9 @@ int main()
 		flux_tick();
 		SDL_GL_SwapBuffers();
 
-		double frametime= getTime() - gTime;
+		double frametime= getTime() - time;
 		double delay= (1.0/100) - frametime;
-		if(delay<0.00001) delay= 0.00001;
+		if(delay<0.0001) delay= 0.0001;
 		usleep(useconds_t(delay*1000000));
 	}
 

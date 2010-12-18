@@ -7,7 +7,6 @@ inline bool checkglerror(bool fatal= false)
     if(err)
     {
     	printf("GL Error: %s\n", gluErrorString(err));
-		*(int*)0= 0;
         if(fatal) abort();
         else return false;
     }
