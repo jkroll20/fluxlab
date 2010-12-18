@@ -1,0 +1,36 @@
+
+
+
+
+float3 main(uniform float2 invWindowSize,
+			uniform float intensity,
+			float3 frontColor: COLOR0,
+			float2 texCoord0: TEXCOORD0,
+			float2 texCoord1: TEXCOORD1,
+			float4 normal: TEXCOORD2,
+			float3 wpos: WPOS,
+			sampler2D tex0: TEXUNIT0,
+			sampler2D tex1: TEXUNIT1): COLOR
+{
+	float2 n= float2(normal.x, normal.y-2);
+	float l= sqrt(n.x*n.x+n.y*n.y)*.1;
+	float3 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity);
+	return texel0-l * 1.5; 	// + tex2D(tex1, texCoord0*0.1);
+}
+
+
+
+void teapotVertexProgram(float4 position: POSITION,
+						 float4 normal: NORMAL,
+						 float2 texCoord0: TEXCOORD0,
+						 uniform float4x4 modelViewProj,
+						 out float4 oPosition: POSITION,
+						 out float2 oTexCoord0: TEXCOORD0,
+						 out float2 oTexCoord1: TEXCOORD1,
+						 out float4 oNormal: TEXCOORD2)
+{
+	oPosition= mul(modelViewProj, position);
+	oTexCoord0= texCoord0;
+	oTexCoord1= oPosition;
+	oNormal= mul(modelViewProj, normal);
+}
