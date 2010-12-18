@@ -1367,7 +1367,7 @@ void create_titleframe()
   create_rect(tbk, 0,0, MAXSCALE,1, COL_FRAMEHI|TRANSL_1, ALIGN_BOTTOM|WREL);
   create_rect(tbk, 0,1, MAXSCALE,1, COL_FRAMELO|TRANSL_2, ALIGN_BOTTOM|WREL);
 
-  dword bclose= clone_group("titlebtn", tbk, 4,0, 140,14, ALIGN_RIGHT|ALIGN_VCENTER);
+  dword bclose= clone_group("titlebtn", tbk, 4,0, 14,14, ALIGN_RIGHT|ALIGN_VCENTER);
   wnd_setprop(bclose, "font", (prop_t)FONT_DEFAULT);
   wnd_setprop(bclose, "text", (prop_t)"x");
   wnd_setprop(bclose, "on_click", (prop_t)btn_close);
