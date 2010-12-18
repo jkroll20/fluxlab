@@ -195,6 +195,65 @@ void makeTestWindow()
 			     4, verts2);
 }
 
+
+class fluxEffectButton
+{
+	public:
+		fluxEffectButton(int x, int y, int width, int height, const char *title, int type,
+						 ulong alignment= ALIGN_RIGHT|ALIGN_TOP, ulong parent= 0)
+		{
+			this->type= type;
+			fluxHandle= clone_group("button", parent, x,y, width,height, alignment);
+			wnd_setprop(fluxHandle, "text", (prop_t)title);
+			wnd_setprop(fluxHandle, "on_click", (prop_t)clickCB);
+			wnd_addprop(fluxHandle, "this", (prop_t)this, PROP_DWORD);
+		}
+
+		void onClick()
+		{
+			switch(type)
+			{
+				case 0:
+					gEffectWindows.createGenericFxWindow(250,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
+					break;
+				case 1:
+					gEffectWindows.createGenericFxWindow(100,300, 200,180, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
+					break;
+				case 2:
+					gEffectWindows.createGenericFxWindow(300,300, 200,180, "Negativ", "cg/colors.cg", "negate");
+					break;
+				case 3:
+					gEffectWindows.addFxWindow(new fluxMagnifyEffect(100,50, 200,180));
+					break;
+				case 4:
+					gEffectWindows.addFxWindow(new fluxPlasmaEffect(400,300, 200,180));
+					break;
+				case 5:
+					gEffectWindows.addFxWindow(new fluxTeapot(500,50, 280,240));
+					break;
+				case 6:
+					gEffectWindows.addFxWindow(new fluxDisplacementEffect(600,150, 200,180));
+					break;
+			}
+		}
+
+	private:
+		ulong fluxHandle;
+		int type;
+
+		void randPos(int width, int height, int &x, int &y)
+		{
+
+		}
+
+//typedef void (*btn_cbclick)(int id, bool btndown, int whichbtn);
+		static void clickCB(int id, bool btndown, int whichbtn)
+		{
+			if(!btndown) reinterpret_cast<fluxEffectButton*>(wnd_getprop(id, "this"))->onClick();
+		}
+};
+
+
 int main()
 {
 	SDL_Event events[32];
@@ -221,14 +280,18 @@ int main()
 		wnd_setprop(t, "title", (prop_t)"Halbtransparent");
 	}
 
-	gEffectWindows.addFxWindow(new fluxMagnifyEffect(100,50, 200,180));
-	gEffectWindows.createGenericFxWindow(250,50, 200,180, "Farbton Invertieren", "cg/colors.cg", "invertHue");
-	gEffectWindows.createGenericFxWindow(100,300, 200,180, "Helligkeit Invertieren", "cg/colors.cg", "invertLightness");
-	gEffectWindows.createGenericFxWindow(300,300, 200,180, "Negativ", "cg/colors.cg", "negate");
-	gEffectWindows.addFxWindow(new fluxPlasmaEffect(400,300, 200,180));
-	gEffectWindows.addFxWindow(new fluxTeapot(500,50, 280,240));
-	gEffectWindows.addFxWindow(new fluxDisplacementEffect(600,150, 200,180));
 	gEffectWindows.addFxWindow(new fluxBackgroundImage(0));
+
+	int buttonW= 140,buttonH= 22, buttonX= 10,buttonY= 10-buttonH;
+	fluxEffectButton buttons[]= {
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Farbton Invertieren", 0),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Helligkeit Invertieren", 1),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Negativ", 2),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Lupe", 3),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Plasma", 4),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Teapot", 5),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Displacement", 6),
+	};
 
 	makeTestWindow();
 
