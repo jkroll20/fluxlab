@@ -201,7 +201,7 @@ void dump_wstat()
 
 window_list *wlist_find(window_list *start, dword id)
 {
-    if(id==NOWND) return 0;
+    if(id==NOWND || !start) return 0;
 
     if( start==windows )
         return window_hash.lookup(id);
@@ -1849,7 +1849,7 @@ void prim_destroy(primitive *prim)
         break;
 
     default:
-        logmsg("prim_destroy: unknown primitive type %d\n", prim->type);
+//        logmsg("prim_destroy: unknown primitive type %d\n", prim->type);
         break;
     }
 
@@ -2243,6 +2243,10 @@ window_list *prim_create_poly(window_list *prev, bool is_child,
     {
         prim->vertexes[i].x= verts[i].x;
         prim->vertexes[i].y= verts[i].y;
+        if(prim->vertexes[i].x<0) prim->vertexes[i].x= 0;
+        if(prim->vertexes[i].y<0) prim->vertexes[i].y= 0;
+        if(prim->vertexes[i].x>1) prim->vertexes[i].x= 1;
+        if(prim->vertexes[i].y>1) prim->vertexes[i].y= 1;
     }
 
     return wnd;
@@ -3130,13 +3134,13 @@ int scanline_callback(scanline_cb_struct *arg, int x, int y)
 {
     int ndot= arg->n_outlinedots++;
     arg->outlinedots[ndot].x= x + 0x7FFF;
-    arg->outlinedots[ndot].y= y + 0x7FFF;
+    arg->outlinedots[ndot].y= y + 0x10000;
 
     if(arg->fill)
     {
         if(y>>16 >= 0 && y>>16 < arg->height)
         {
-            shape_scanline& dest= arg->scanlines[(y>>16)];
+            shape_scanline& dest= arg->scanlines[(y+0x7FFF>>16)];
 
             if(x<dest.x1)
                 dest.x1= x + 0x7FFF;
@@ -3154,10 +3158,10 @@ int polyscanline_cb_left(scanline_cb_struct *arg, int x, int y)
 {
     int ndot= arg->n_outlinedots++;
     arg->outlinedots[ndot].x= x + 0x7FFF;
-    arg->outlinedots[ndot].y= y + 0x7FFF;
+    arg->outlinedots[ndot].y= y + 0x10000;
 	if(y>>16 >= 0 && y>>16 < arg->height)
     {
-        shape_scanline& dest= arg->scanlines[(y>>16)];
+        shape_scanline& dest= arg->scanlines[(y+0x7FFF>>16)];
 
         if(x+0x7FFF<dest.x1)
             dest.x1= x + 0x7FFF;
@@ -3169,10 +3173,10 @@ int polyscanline_cb_right(scanline_cb_struct *arg, int x, int y)
 {
     int ndot= arg->n_outlinedots++;
     arg->outlinedots[ndot].x= x + 0x7FFF;
-    arg->outlinedots[ndot].y= y + 0x7FFF;
+    arg->outlinedots[ndot].y= y + 0x10000;
     if(y>>16 >= 0 && y>>16 < arg->height)
     {
-        shape_scanline& dest= arg->scanlines[(y>>16)];
+        shape_scanline& dest= arg->scanlines[(y+0x7FFF>>16)];
 
         if(x-0x7FFF>dest.x2)
             dest.x2= x - 0x7FFF;

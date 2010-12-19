@@ -164,7 +164,7 @@ void draw_text(font *font, char *text, int sx,int sy, rect clp, dword col)
 	    	x= sx;
 	    	break;
 	    case ' ':
-	    	x+= font->widths['-'-33];
+	    	x+= font->widths['x'-33];
 	    	break;
 	}
 	else
@@ -301,8 +301,15 @@ void fill_rect(rect *r, dword color)
 extern "C"
 void hline(int x1, int y, int x2, dword color)
 {
-  rect rc= { x1,y, x2,y+1 };
-  fill_rect(&rc, color);	// inefficient..
+//  rect rc= { x1,y, x2,y+1 };
+//  fill_rect(&rc, color);	// inefficient..
+	y++;
+	if(x1<0) x1= 0;
+	glColor4ub(color&0xFF, color>>8&0xFF, color>>16&0xFF, 0xFF);
+	glBegin(GL_LINES);
+	glVertex2i(x1, y);
+	glVertex2i(x2, y);
+	glEnd();
 }
 
 
@@ -337,12 +344,12 @@ void fill_scanlines(shape_scanline *scanlines, rect clip, rect abspos, dword col
     x1= scanlines[i].x1 + (abspos.x<<16);
     x2= scanlines[i].x2 + (abspos.x<<16) + 65536;
 
-    if((x2&0xFFFF0000)>(x1&0xFFFF0000))
+    if(x2-x1 > 0x10000) //(x2&0xFFFF0000)>(x1&0xFFFF0000))
     {
       if(x1 < clip.x<<16) x1= clip.x<<16;
       if(x2 > clip.rgt<<16) x2= clip.rgt<<16;
 
-      hline(x1>>16, i+abspos.y, (x2>>16), col);
+      hline(short(x1>>16), i+abspos.y, short(x2>>16), col);
     }
   }
 #endif
@@ -359,22 +366,22 @@ static void setpixeli_plain(int x, int y, byte colv[4])
     f= dword((0xFFFF-fx)*(0xFFFF-fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2f(xabs, yabs);
+    glVertex2i(xabs, yabs);
 
     f= dword((fx)*(0xFFFF-fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2f(xabs+1, yabs);
+    glVertex2i(xabs+1, yabs);
 
     f= dword((fx)*(fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2f(xabs+1, yabs+1);
+    glVertex2i(xabs+1, yabs+1);
 
     f= dword((0xFFFF-fx)*(fy)) >> 16;
     colv[3]= f>0xFFFF? 0xFF: f>>8;
     glColor4ubv(colv);
-    glVertex2f(xabs, yabs+1);
+    glVertex2i(xabs, yabs+1);
 }
 
 

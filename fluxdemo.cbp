@@ -61,6 +61,7 @@
 		<Unit filename="cg/test.cg" />
 		<Unit filename="cg/test2.cg" />
 		<Unit filename="src/fbo.h" />
+		<Unit filename="src/fluxeffects.h" />
 		<Unit filename="src/main.cpp" />
 		<Extensions>
 			<code_completion />

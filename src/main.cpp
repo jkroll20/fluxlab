@@ -29,6 +29,7 @@ int gScreenWidth= 1024, gScreenHeight= 600;
 float gZoom= 1.0;
 double gTime, gStartTime;
 bool gIsMesa= false;
+int gNeedDepthClear= 0;
 
 
 double getTime()
@@ -114,6 +115,9 @@ void flux_tick()
 	gFBO.set_ortho_mode();
 	gFBO.select_framebuffer_texture(0);
 
+	if(gNeedDepthClear)
+		glClear(GL_DEPTH_BUFFER_BIT);
+
 	rect rc= viewport;
 	rc.x/= gZoom; rc.rgt/= gZoom;
 	rc.y/= gZoom; rc.btm/= gZoom;
@@ -175,22 +179,61 @@ int SDLMouseButtonToFluxMouseButton(int button)
 }
 
 
-void makeShapeWindow(int x, int y)
+void makeShapeWindow(int x, int y, int width, int height)
 {
-    dword wnd= create_rect(NOPARENT, x,y, 260,160, COL_WINDOW, ALIGN_LEFT|ALIGN_TOP);
+    dword wnd= create_rect(NOPARENT, x,y, width, height, COL_WINDOW, ALIGN_LEFT|ALIGN_TOP);
     dword frame= clone_frame("titleframe", wnd);
     wnd_setprop(frame, "title", (prop_t)"Shapes");
 
     dword ellipse= create_ellipse(wnd, 0,0, 5000,10000, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL|HREL, true,
 				  0.5,0.5, 0.5,0.5);
 
-    dblpos verts1[]= { {0.0,0.0}, {1.0,0.25}, {0.5,1.0} };
-    dword poly1= create_poly(wnd, 5000,0, 5000,100, COL_ITEMHI, ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
-			     3, verts1);
+	const int maxverts= 8;
+	fltpos verts[maxverts];
+	for(int i= maxverts; i>=3; i--)
+	{
+		for(int k= 0; k<i; k++)
+		{
+			fltpos p0= { -.1-(i-3)*.05, -.1-(i-3)*.05 }, p1;
+			double a= (k+(i*1.5)+1)*M_PI*2/(i);
+			p1.x= p0.x*cos(a)-p0.y*sin(a) + .5;
+			p1.y= p0.y*cos(a)+p0.x*sin(a) + .5;
+			verts[k]= p1;
+		}
+		dword poly= create_poly(wnd, 5000,0, 5000,200, SYSCOL(i-3), ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
+								i, verts);
+	}
+}
 
-    dblpos verts2[]= { {0.25,0.0}, {0.75,0.5}, {0.25,0.75}, {0.0,0.5} };
-    dword poly2= create_poly(wnd, 5000,0, 5000,100, COL_TITLE, ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
-			     4, verts2);
+
+void makeGroupsWindow(int x, int y, int width, int height)
+{
+    dword wnd= create_rect(NOPARENT, x,y, width, height, COL_WINDOW, ALIGN_LEFT|ALIGN_TOP);
+    dword frame= clone_frame("titleframe", wnd);
+    wnd_setprop(frame, "title", (prop_t)"Groups");
+
+//typedef void (*scrlbox_onchange)(int id, int pos);
+//	dword scrollbox= clone_group("scrollbox", wnd, 4,4, 16,4, ALIGN_RIGHT|ALIGN_TOP|ALIGN_BOTTOM);
+
+	dword button= clone_group("button", wnd, 4,4, 80,20, ALIGN_LEFT|ALIGN_TOP);
+	wnd_setprop(button, "text", (prop_t)"Button");
+
+    dword checkbox= clone_group("checkbox", wnd, 4,20+4+4, 90,20, ALIGN_LEFT|ALIGN_TOP);
+    wnd_setprop(checkbox, "text", (prop_t)"Checkbox 1");
+	checkbox= clone_group("checkbox", wnd, 4,(20+4)*2+4, 90,20, ALIGN_LEFT|ALIGN_TOP);
+    wnd_setprop(checkbox, "text", (prop_t)"Checkbox 2");
+	checkbox= clone_group("checkbox", wnd, 4,(20+4)*3+4, 90,20, ALIGN_LEFT|ALIGN_TOP);
+    wnd_setprop(checkbox, "text", (prop_t)"Checkbox 3");
+
+	dword listbox= clone_group("listbox", wnd, 4,4, 4500,16*5+2, ALIGN_RIGHT|ALIGN_TOP | WREL);
+    wnd_setprop(listbox, "append_item", (prop_t)"Item 1");
+    wnd_setprop(listbox, "append_item", (prop_t)"Item 2");
+    wnd_setprop(listbox, "append_item", (prop_t)"Item 3");
+    wnd_setprop(listbox, "append_item", (prop_t)"Item 4");
+    wnd_setprop(listbox, "append_item", (prop_t)"Item 5");
+
+	dword bkgnd= create_rect(wnd, 4,4, 4,font_height(FONT_DEFAULT)+2, COL_FRAMELO|TRANSL_2, ALIGN_BOTTOM|ALIGN_LEFT|ALIGN_RIGHT);
+    dword textinput= clone_group("textinput", wnd, 4,0, 4,20, ALIGN_BOTTOM|ALIGN_LEFT|ALIGN_RIGHT);
 }
 
 
@@ -238,7 +281,15 @@ class fluxEffectButton
 					gEffectWindows.addFxWindow(new fluxDisplacementEffect(x,y, width,height));
 					break;
 				case 7:
-					makeShapeWindow(x, y);
+					width= 380; height= 220;
+					randPos(width, height, x, y);
+					makeShapeWindow(x, y, width, height);
+					break;
+				case 8:
+					width= 220; height= 160;
+					randPos(width, height, x, y);
+					makeGroupsWindow(x, y, width, height);
+					break;
 			}
 		}
 
@@ -248,11 +299,10 @@ class fluxEffectButton
 
 		void randPos(int width, int height, int &x, int &y)
 		{
-			x= rand()%(gScreenWidth-width-4);
+			x= rand()%(gScreenWidth-width-4-150);
 			y= rand()%(gScreenHeight-height-(font_height(FONT_DEFAULT)+8+4));
 		}
 
-//typedef void (*btn_cbclick)(int id, bool btndown, int whichbtn);
 		static void clickCB(int id, bool btndown, int whichbtn)
 		{
 			if(!btndown) reinterpret_cast<fluxEffectButton*>(wnd_getprop(id, "this"))->onClick();
@@ -298,7 +348,10 @@ int main()
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Teapot", 5),
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Displacement", 6),
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Shapes", 7),
+		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Groups", 8),
 	};
+
+	SDL_EnableKeyRepeat(250, 50);
 
 	while(!doQuit)
 	{
@@ -316,8 +369,12 @@ int main()
 				case SDL_KEYDOWN:
 					if(ev.key.keysym.sym==SDLK_ESCAPE)
 						doQuit= true;
-					else if(ev.key.keysym.sym==' ')
+					else if(ev.key.keysym.sym==19)
 						isPaused= !isPaused;
+					else
+					{
+						flux_keyboard_event(true, ev.key.keysym.scancode, ev.key.keysym.sym);
+					}
 					break;
 				case SDL_QUIT:
 					doQuit= true;
@@ -351,6 +408,7 @@ int main()
 		usleep(useconds_t(delay*1000000));
 	}
 
+	flux_shutdown();
 	SDL_Quit();
     return 0;
 }

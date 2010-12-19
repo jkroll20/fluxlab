@@ -193,12 +193,12 @@ void create_scrollbox_group()
 
   button= clone_group("titlebtn", group, 0,0, MAXSCALE,10, ALIGN_TOP|WREL);
   wnd_setprop(button, "font", (prop_t)FONT_SYMBOL);
-  wnd_setprop(button, "text", (prop_t)"\x84");
+  wnd_setprop(button, "text", (prop_t)"+"); //"\x84");
   wnd_setprop(button, "on_click", (prop_t)scrlboxbtn_scrlup);
 
   button= clone_group("titlebtn", group, 0,0, MAXSCALE,10, ALIGN_BOTTOM|WREL);
   wnd_setprop(button, "font", (prop_t)FONT_SYMBOL);
-  wnd_setprop(button, "text", (prop_t)"\x83");
+  wnd_setprop(button, "text", (prop_t)"-"); //"\x83");
   wnd_setprop(button, "on_click", (prop_t)scrlboxbtn_scrldn);
 
   wnd_prop_add(group, "knobsize", MAXSCALE/8, PROP_DWORD);
@@ -2235,9 +2235,9 @@ int checkbox_cbmouse(prop_t arg, primitive *self, int event, int x, int y, int b
 void create_checkbox_group()
 {
     dword grp= create_group("checkbox");
-    dword btn= create_rect(grp, 0,0, 10,10, COL_FRAMELO|TRANSL_1, ALIGN_LEFT|ALIGN_VCENTER);
-    create_text(btn, 1,-1,8,12, "\x87", COL_FRAMEHI, FONT_SYMBOL, ALIGN_HCENTER|ALIGN_VCENTER);	// btn
-    create_text(grp, 14,0, MAXSCALE,font_height(FONT_DEFAULT), "", COL_ITEMTEXT, FONT_DEFAULT, ALIGN_VCENTER|WREL); // text
+    dword btn= create_rect(grp, 0,0, 13,13, COL_FRAMELO|TRANSL_1, ALIGN_LEFT|ALIGN_VCENTER);
+    create_text(btn, 1,-1,8,13, "\x87", COL_FRAMEHI, FONT_SYMBOL, ALIGN_HCENTER|ALIGN_VCENTER);	// btn
+    create_text(grp, 16,0, MAXSCALE,font_height(FONT_DEFAULT), "", COL_ITEMTEXT, FONT_DEFAULT, ALIGN_VCENTER|WREL); // text
     clone_frame("loweredframe0", btn);
 
     wnd_set_mouse_callback(grp, checkbox_cbmouse, 0);
@@ -2373,7 +2373,7 @@ static int textinput_status(prop_t arg, struct primitive *self, int type)
 	case STAT_LOSEFOCUS:
 	{
 	    if(self->privdata) timer_kill(*(int*)(&self->privdata));
-	    dword cursor= wnd_walk(self->id, CHILD, CHILD, SELF);
+	    dword cursor= wnd_walk(self->id, CHILD, SELF);
 	    wnd_show(cursor, false);
 	    break;
 	}
@@ -2426,6 +2426,8 @@ static void textinput_keybd(prop_t arg, primitive *self, int isdown, int code, i
     primitive *parent= self->parent;
     char *newstr= 0;
 
+//	printf("code: %d, chr: %d\n", code, chr);
+
     if(isdown)
     {
 	textinput_settimer(self);
@@ -2446,7 +2448,7 @@ static void textinput_keybd(prop_t arg, primitive *self, int isdown, int code, i
 	    }
 	}
 
-	if(isprint(chr))
+	if(isprint(chr) || chr==' ')
 	{
 	    int len= strlen(str);
 	    if(len>TEXTINPUT_MAX-2) len= TEXTINPUT_MAX-2;
@@ -2484,29 +2486,31 @@ static void textinput_keybd(prop_t arg, primitive *self, int isdown, int code, i
 	else if(chr==13)	// enter
 	{
 	    wnd_setkbdfocus(NOWND);
-	    wnd_setkbdfocus(self->id);
+//	    dword cur= wnd_walk(self->id, CHILD, SELF);
+//	    wnd_show(cur, false);
+//	    wnd_setkbdfocus(self->id);
 	}
 
-	else if(code==276)	// left
+	else if(code==113) //276)	// left
 	{
 	    wnd_setprop(parent->id, "cursorpos", --pos);
 	}
-	else if(code==275)	// right
+	else if(code==114) //275)	// right
 	{
 	    wnd_setprop(parent->id, "cursorpos", ++pos);
 	}
-	else if(code==278)	// home
+	else if(code==110) //278)	// home
 	{
 	    wnd_setprop(parent->id, "cursorpos", 0);
 	}
-	else if(code==279)	// end
+	else if(code==115) //279)	// end
 	{
 	    wnd_setprop(parent->id, "cursorpos", TEXTINPUT_MAX);
 	}
 
 	if(newstr)
 	{
-	    wnd_setwidth(self->id, font_gettextwidth(FONT_DEFAULT, newstr) + font_gettextwidth(FONT_DEFAULT, "_"));
+//	    wnd_setwidth(self->id, font_gettextwidth(FONT_DEFAULT, newstr) + font_gettextwidth(FONT_DEFAULT, "_"));
 	    textinput_on_change_fn cb;
 	    if( (cb= (textinput_on_change_fn)wnd_getprop(parent->id, "on_change")) )
 	    	cb( parent->id, newstr );
@@ -2518,7 +2522,7 @@ void create_textinput_group()
 {
     dword grp= create_group("textinput");
     dword txt= create_text(grp, 2,0, 0,font_height(FONT_DEFAULT)+1, "", COL_ITEMTEXT, FONT_DEFAULT, ALIGN_RIGHT|ALIGN_VCENTER);
-    dword cursor= create_text(txt, 0,0, 10,font_height(FONT_DEFAULT)+1, "_", COL_ITEMTEXT|TRANSL_2, FONT_DEFAULT, ALIGN_LEFT|ALIGN_VCENTER);
+    dword cursor= create_text(txt, 0,0, 10,font_height(FONT_DEFAULT)+1, "_", COL_ITEMTEXT|TRANSL_3, FONT_DEFAULT, ALIGN_LEFT|ALIGN_VCENTER);
     wnd_show(cursor, false);
     wnd_set_zpos(cursor, Z_TOP);
     wnd_set_mouse_callback(grp, textinput_mouse, 0);

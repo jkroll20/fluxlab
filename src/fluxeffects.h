@@ -11,6 +11,7 @@ extern int gScreenWidth, gScreenHeight;
 extern float gZoom;
 extern double gTime, gStartTime;
 extern bool gIsMesa;
+extern int gNeedDepthClear;
 
 GLuint loadTexture(const char *filename, bool mipmapped= true);
 
@@ -424,12 +425,19 @@ class fluxTeapot: public fluxCgEffect
 			: fluxCgEffect(fluxHandleToAttachTo)
 		{
 			setup();
+			gNeedDepthClear++;
 		}
 
 		fluxTeapot(int x, int y, int width, int height, dword parent= NOPARENT, int alignment= ALIGN_LEFT|ALIGN_TOP)
 			: fluxCgEffect(x,y, width,height, parent, alignment)
 		{
 			setup();
+			gNeedDepthClear++;
+		}
+
+		~fluxTeapot()
+		{
+			gNeedDepthClear--;
 		}
 
 	private:
@@ -490,8 +498,6 @@ class fluxTeapot: public fluxCgEffect
 			glPushMatrix();
 			glLoadIdentity();
 			glViewport(absPos->x,absPos->y, w,h);
-
-			glClear(GL_DEPTH_BUFFER_BIT);
 
 			glTranslatef(0, -1.2, -5);
 			glRotatef(22.5, 1, 0, 0);
