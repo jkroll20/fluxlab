@@ -442,7 +442,9 @@ class fluxTeapot: public fluxCgEffect
 
 	private:
 		GLuint texture;
+		GLUquadric *quadric;
 		CGparameter cgModelViewProj;
+		CGparameter cgLightModelViewProj;
 		CGparameter cgInvWindowSize;
 		CGparameter cgIntensity;
 
@@ -455,16 +457,19 @@ class fluxTeapot: public fluxCgEffect
 #endif
 
 			texture= loadTexture("data/mix.png");
+			quadric= gluNewQuadric();
 
 			loadFragmentProgram("cg/teapot.cg");
-
 			loadVertexProgram("cg/teapot.cg", "teapotVertexProgram");
 
 			cgModelViewProj= cgGetNamedParameter(vertProgram, "modelViewProj");
-			if(!cgModelViewProj) printf("couldn't find cgModelViewProj parameter.\n");
+			if(!cgModelViewProj) printf("couldn't find modelViewProj parameter.\n");
+
+			cgLightModelViewProj= cgGetNamedParameter(vertProgram, "lightModelViewProj");
+			if(!cgLightModelViewProj) printf("couldn't find lightModelViewProj parameter.\n");
 
 			cgInvWindowSize= cgGetNamedParameter(fragProgram, "invWindowSize");
-			if(!cgInvWindowSize) printf("couldn't find cgInvWindowSize parameter.\n");
+			if(!cgInvWindowSize) printf("couldn't find invWindowSize parameter.\n");
 
 			cgIntensity= cgGetNamedParameter(fragProgram, "intensity");
 			if(!cgIntensity) printf("couldn't find intensity parameter.\n");
@@ -485,10 +490,12 @@ class fluxTeapot: public fluxCgEffect
 			cgGLEnableProfile(gCgState.getFragmentProfile());
 			cgGLBindProgram(fragProgram);
 			cgSetParameter2f(cgInvWindowSize, 1.0/gScreenWidth, (gIsMesa? -1.0: 1.0)/gScreenHeight);
-			cgSetParameter1f(cgIntensity, /*0.0325*/0.05 * sqrt(w*h)/sqrt(200*180));
+			cgSetParameter1f(cgIntensity, 0.05 * sqrt(w*h)/sqrt(200*180));
 			cgUpdateProgramParameters(fragProgram);
 			cgGLEnableProfile(gCgState.getVertexProfile());
 			cgGLBindProgram(vertProgram);
+
+			glEnable(GL_CULL_FACE);
 
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
@@ -498,22 +505,48 @@ class fluxTeapot: public fluxCgEffect
 			glPushMatrix();
 			glLoadIdentity();
 			glViewport(absPos->x,absPos->y, w,h);
+			glEnable(GL_DEPTH_TEST);
 
-			glTranslatef(0, -1.2, -5);
+			glTranslatef(0, -1.2, -5.5);
 			glRotatef(22.5, 1, 0, 0);
-			glRotatef((gTime-gStartTime)*50, 0, 1, 0);
 			glRotatef(-90, 1, 0, 0);
+			glPushMatrix();
+
+			float lightPos[3]= { 3,0,3 }; //3.5, 0, 3.25 };
+			glRotatef((gTime-gStartTime)*-100, 0,0,1);
+			glTranslatef(lightPos[0], lightPos[1], lightPos[2]);
+			cgGLSetStateMatrixParameter(cgLightModelViewProj,
+										CG_GL_MODELVIEW_PROJECTION_MATRIX,
+										CG_GL_MATRIX_IDENTITY);
+			cgUpdateProgramParameters(vertProgram);
+			cgGLDisableProfile(gCgState.getFragmentProfile());
+			cgGLDisableProfile(gCgState.getVertexProfile());
+			glDisable(GL_TEXTURE_2D);
+			glColor3f(1,1,1);
+			glCullFace(GL_BACK);
+			gluSphere(quadric, .1, 10, 10);
+			glEnable(GL_TEXTURE_2D);
+			glLoadIdentity();
+
+			cgGLEnableProfile(gCgState.getVertexProfile());
+			cgGLEnableProfile(gCgState.getFragmentProfile());
+
+			glPopMatrix();
+
+//			glTranslatef(0, -1.2, -5.5);
+//			glRotatef(22.5, 1, 0, 0);
+			glRotatef((gTime-gStartTime)*50, 0, 0, 1);
+//			glRotatef(-90, 1, 0, 0);
+
+			glCullFace(GL_FRONT);
 
 			cgGLSetStateMatrixParameter(cgModelViewProj,
-								CG_GL_MODELVIEW_PROJECTION_MATRIX,
-								CG_GL_MATRIX_IDENTITY);
+										CG_GL_MODELVIEW_PROJECTION_MATRIX,
+										CG_GL_MATRIX_IDENTITY);
 			cgUpdateProgramParameters(vertProgram);
 
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
-			glEnable(GL_CULL_FACE);
-			glCullFace(GL_FRONT);
-			glEnable(GL_DEPTH_TEST);
 			glMatrixMode(GL_TEXTURE);
 			glScalef(.125, .125, 1);
 			glMatrixMode(GL_MODELVIEW);
@@ -526,6 +559,7 @@ class fluxTeapot: public fluxCgEffect
 			glEnable(GL_AUTO_NORMAL);
 			fastTeapot(4);
 #endif
+
 			glMatrixMode(GL_TEXTURE);
 			glLoadIdentity();
 			glDisable(GL_CULL_FACE);
