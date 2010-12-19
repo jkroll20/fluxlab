@@ -2,17 +2,35 @@
 
 
 
-float3 main(uniform float2 invWindowSize,
+float4 main(uniform float2 invWindowSize,
 			uniform float intensity,
 			float4 normal: TEXCOORD2,
-			float3 wpos: WPOS,
-			sampler2D tex0: TEXUNIT0
-			): COLOR
+			float2 wpos: WPOS,
+			sampler2D tex0: TEXUNIT0): COLOR
 {
 	float2 n= float2(normal.x, normal.y-2);
-	float l= sqrt(n.x*n.x+n.y*n.y)*.1;
-	float3 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity);
+	float l= length(n)*.1;
+	float4 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity);
 	return texel0 - l*1.25;
+}
+
+
+float4 lighting1(uniform float2 invWindowSize,
+				 uniform float intensity,
+				 float3 lightPos: TEXCOORD1,
+				 float3 normal: TEXCOORD2,
+				 float3 objPos: TEXCOORD3,
+				 float2 wpos: WPOS,
+				 sampler2D tex0: TEXUNIT0): COLOR
+{
+	float3 d= objPos-lightPos;
+	float4 v= max(1-length(d)*.3, 0);
+	v.a= 1;
+	float2 n= float2(normal.x, normal.y-2);
+	float l= length(n)*.1;
+	float4 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity);
+	return texel0 + v - l*1.25;
+	return v;
 }
 
 
@@ -20,15 +38,21 @@ float3 main(uniform float2 invWindowSize,
 void teapotVertexProgram(float4 position: POSITION,
 						 float4 normal: NORMAL,
 						 float2 texCoord0: TEXCOORD0,
+						 uniform float4x4 modelProj,
 						 uniform float4x4 modelViewProj,
 						 uniform float4x4 lightModelViewProj,
+						 uniform float3 lightPos,
 						 out float4 oPosition: POSITION,
 						 out float2 oTexCoord0: TEXCOORD0,
-						 out float2 oTexCoord1: TEXCOORD1,
-						 out float4 oNormal: TEXCOORD2)
+						 out float3 oLightPos: TEXCOORD1,
+						 out float3 oNormal: TEXCOORD2,
+						 out float3 objPos: TEXCOORD3)
 {
 	oPosition= mul(modelViewProj, position);
 	oTexCoord0= texCoord0;
-	oTexCoord1= oPosition;
+
 	oNormal= mul(modelViewProj, normal);
+
+	oLightPos= mul(lightModelViewProj, float4(lightPos, 1));
+	objPos= mul(modelProj, position);
 }

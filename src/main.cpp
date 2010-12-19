@@ -89,6 +89,9 @@ void setVideoMode(int w, int h)
 	gFBO.free_resources();
 	gFBO.create(w, h);
 	glDisable(GL_DITHER);
+	// Evaluator enables for fast teapot
+	glEnable(GL_MAP2_VERTEX_3);
+	glEnable(GL_AUTO_NORMAL);
 	gFBO.disable();
 
 	if(gCgState.initialize())
@@ -107,6 +110,8 @@ void flux_tick()
 	static double accumTime;
 	static ulong accumFrames;
 	static double avgFPS;
+
+	double time= getTime();
 
 	aq_exec();
 	run_timers();
@@ -129,7 +134,7 @@ void flux_tick()
 	if(rc.rgt>gScreenWidth) rc.rgt= gScreenWidth, rc.x= rc.rgt-w;
 	if(rc.btm>gScreenHeight) rc.btm= gScreenHeight, rc.y= rc.btm-h;
 
-	double f= (gTime-lastUpdate)*5;
+	double f= (time-lastUpdate)*5;
 	if(x0==x1) x0= 0, x1= gScreenWidth, y0= 0, y1= gScreenHeight;
 	x0+= (rc.x-x0)*f; x1+= (rc.rgt-x1)*f;
 	y0+= (rc.y-y0)*f; y1+= (rc.btm-y1)*f;
@@ -167,9 +172,9 @@ void flux_tick()
 	checkglerror();
 
 	accumFrames++;
-	accumTime+= gTime-lastUpdate;
+	accumTime+= time-lastUpdate;
 	if(accumTime>=1.0) { avgFPS= accumFrames/accumTime; accumFrames= 0; accumTime= 0; }
-	lastUpdate= gTime;
+	lastUpdate= time;
 }
 
 int SDLMouseButtonToFluxMouseButton(int button)
@@ -315,9 +320,9 @@ int main()
 	SDL_Event events[32];
 	bool doQuit= false;
 	bool isPaused= false;
-	double time;
+	double time, lastTime;
 
-	gStartTime= getTime();
+	gStartTime= gTime= lastTime= getTime();
 	setVideoMode(gScreenWidth, gScreenHeight);
 
 	const unsigned char *glRenderer= glGetString(GL_RENDERER);
@@ -357,7 +362,8 @@ int main()
 	{
 		time= getTime();
 		if(!isPaused)
-			gTime= time;
+			gTime+= time-lastTime;
+		lastTime= time;
 
 		SDL_PumpEvents();
 		int numEvents= SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_ALLEVENTS);

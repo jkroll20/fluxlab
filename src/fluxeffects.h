@@ -28,7 +28,7 @@ class CgState
 
 			myCgContext= cgCreateContext();
 			if(!checkForCgError("creating context")) return false;
-			cgGLSetDebugMode(CG_TRUE);
+			cgGLSetDebugMode(CG_FALSE);
 			cgSetParameterSettingMode(myCgContext, CG_DEFERRED_PARAMETER_SETTING);
 
 			myCgVertexProfile= cgGLGetLatestProfile(CG_GL_VERTEX);
@@ -443,8 +443,9 @@ class fluxTeapot: public fluxCgEffect
 	private:
 		GLuint texture;
 		GLUquadric *quadric;
-		CGparameter cgModelViewProj;
+		CGparameter cgModelProj, cgModelViewProj;
 		CGparameter cgLightModelViewProj;
+		CGparameter cgLightPos;
 		CGparameter cgInvWindowSize;
 		CGparameter cgIntensity;
 
@@ -459,14 +460,25 @@ class fluxTeapot: public fluxCgEffect
 			texture= loadTexture("data/mix.png");
 			quadric= gluNewQuadric();
 
+// lighting. unfinished
+//#define L1
+#ifdef L1
+			loadFragmentProgram("cg/teapot.cg", "lighting1");
+#else
 			loadFragmentProgram("cg/teapot.cg");
+#endif
 			loadVertexProgram("cg/teapot.cg", "teapotVertexProgram");
+
+			cgModelProj= cgGetNamedParameter(vertProgram, "modelProj");
 
 			cgModelViewProj= cgGetNamedParameter(vertProgram, "modelViewProj");
 			if(!cgModelViewProj) printf("couldn't find modelViewProj parameter.\n");
 
 			cgLightModelViewProj= cgGetNamedParameter(vertProgram, "lightModelViewProj");
 			if(!cgLightModelViewProj) printf("couldn't find lightModelViewProj parameter.\n");
+
+			cgLightPos= cgGetNamedParameter(vertProgram, "lightPos");
+			if(!cgLightPos) printf("couldn't find lightPos parameter.\n");
 
 			cgInvWindowSize= cgGetNamedParameter(fragProgram, "invWindowSize");
 			if(!cgInvWindowSize) printf("couldn't find invWindowSize parameter.\n");
@@ -487,12 +499,7 @@ class fluxTeapot: public fluxCgEffect
 			drawRect(*absPos);
 			glEnd();
 
-			cgGLEnableProfile(gCgState.getFragmentProfile());
 			cgGLBindProgram(fragProgram);
-			cgSetParameter2f(cgInvWindowSize, 1.0/gScreenWidth, (gIsMesa? -1.0: 1.0)/gScreenHeight);
-			cgSetParameter1f(cgIntensity, 0.05 * sqrt(w*h)/sqrt(200*180));
-			cgUpdateProgramParameters(fragProgram);
-			cgGLEnableProfile(gCgState.getVertexProfile());
 			cgGLBindProgram(vertProgram);
 
 			glEnable(GL_CULL_FACE);
@@ -510,35 +517,45 @@ class fluxTeapot: public fluxCgEffect
 			glTranslatef(0, -1.2, -5.5);
 			glRotatef(22.5, 1, 0, 0);
 			glRotatef(-90, 1, 0, 0);
+
 			glPushMatrix();
 
-			float lightPos[3]= { 3,0,3 }; //3.5, 0, 3.25 };
+			float lightPos[3]= { 3,0,3 };
 			glRotatef((gTime-gStartTime)*-100, 0,0,1);
-			glTranslatef(lightPos[0], lightPos[1], lightPos[2]);
+			cgSetParameter3f(cgLightPos, lightPos[0], lightPos[1], lightPos[2]);
 			cgGLSetStateMatrixParameter(cgLightModelViewProj,
-										CG_GL_MODELVIEW_PROJECTION_MATRIX,
+										CG_GL_MODELVIEW_MATRIX,
 										CG_GL_MATRIX_IDENTITY);
 			cgUpdateProgramParameters(vertProgram);
+			glTranslatef(lightPos[0], lightPos[1], lightPos[2]);
 			cgGLDisableProfile(gCgState.getFragmentProfile());
 			cgGLDisableProfile(gCgState.getVertexProfile());
 			glDisable(GL_TEXTURE_2D);
 			glColor3f(1,1,1);
 			glCullFace(GL_BACK);
+#ifdef L1
 			gluSphere(quadric, .1, 10, 10);
+#endif
 			glEnable(GL_TEXTURE_2D);
 			glLoadIdentity();
 
-			cgGLEnableProfile(gCgState.getVertexProfile());
 			cgGLEnableProfile(gCgState.getFragmentProfile());
+			cgSetParameter2f(cgInvWindowSize, 1.0/gScreenWidth, (gIsMesa? -1.0: 1.0)/gScreenHeight);
+			cgSetParameter1f(cgIntensity, 0.03 * sqrt(w*h)/sqrt(200*180));
+			cgUpdateProgramParameters(fragProgram);
+			cgGLEnableProfile(gCgState.getVertexProfile());
+			cgGLBindProgram(vertProgram);
 
 			glPopMatrix();
 
-//			glTranslatef(0, -1.2, -5.5);
-//			glRotatef(22.5, 1, 0, 0);
 			glRotatef((gTime-gStartTime)*50, 0, 0, 1);
-//			glRotatef(-90, 1, 0, 0);
 
 			glCullFace(GL_FRONT);
+
+			cgGLSetStateMatrixParameter(cgModelProj,
+										CG_GL_MODELVIEW_MATRIX,
+										CG_GL_MATRIX_IDENTITY);
+			cgUpdateProgramParameters(vertProgram);
 
 			cgGLSetStateMatrixParameter(cgModelViewProj,
 										CG_GL_MODELVIEW_PROJECTION_MATRIX,
@@ -554,9 +571,6 @@ class fluxTeapot: public fluxCgEffect
 #ifdef GLUTPOT
 			glutSolidTeapot(4);
 #else
-			// Evaluator enables for fast teapot
-			glEnable(GL_MAP2_VERTEX_3);
-			glEnable(GL_AUTO_NORMAL);
 			fastTeapot(4);
 #endif
 
