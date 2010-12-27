@@ -1,5 +1,14 @@
-this is a little demo for flux, the pretty & lightweight cross-platform gui library. 
+this demo shows some basic features of flux, a cross-platform gui library in development.
 
-you need the cg toolkit to build: http://developer.nvidia.com/object/cg_download.html
+ - groups: look & behaviour of commonly-used functionality (button, checkbox, window frame) is defined once, then re-used ('cloned'). demo shows a set of default groups.
+ - window handling: windows can be dragged (titlebar) and resized with right mouse button. overlapping opaque and translucent windows are drawn correctly.
+ - scaling and alignment: child windows can be aligned to top/left/right/bottom edges of parent windows. position and size can be specified in absolute (pixel) values or relative (percentage) values. combining these automatic alignment types makes the use of callbacks to resize child windows, used in other gui toolkits, unnecessary for all common tasks.
+ - shapes: basic antialiased vector graphics (polygon, ellipse, arc) 
+ - fast antialiased bitmap fonts (using opengl textures)
+ - basic keyboard input using sdl events.
 
-github: https://github.com/jkroll20/fluxlab
+all basic features work on resource-limited machines too, an FPU is not needed. a working backend exists for the nintendo ds (66 MHz integer-only cpu, 4 MB RAM).
+
+the demo also implements a simple FBO-based compositor, enabling pixelshader effect windows and zooming (try mouse wheel). you need a graphics card and driver supported by the cg runtime. the demo runs on linux, but should build on other platforms. you need development packages for GL, GLU, glut, SDL, SDL_image, and the cg runtime (http://developer.nvidia.com/object/cg_download.html) to build.
+
+https://github.com/jkroll20/fluxlab

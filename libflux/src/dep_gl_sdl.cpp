@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <GL/gl.h>
 #include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
 #include <FreeImage.h>
 #include "../data/gl_sdl/data.h"
 #include "../data/gl_sdl/default_font.h"
@@ -189,7 +190,7 @@ static int get_min_powerof2(int n)
 }
 
 
-// Wird aufgerufen wenn sich die Pixeldaten von dem Font geändert haben
+// Wird aufgerufen wenn sich die Pixeldaten eines Fonts geändert haben
 // GL-Textur hochladen
 extern "C"
 void font_dep_update(font *_font)
@@ -429,12 +430,55 @@ void blt_rgba(flux_rgba *_src, int src_w, int src_h, rect rc, int dst_x, int dst
 {
 }
 
+static GLuint load_texture(const char *filename, int *width= 0, int *height= 0)
+{
+    SDL_Surface *surface= IMG_Load(filename);
+    if(!surface) return 0;
+    GLuint name;
+    glGenTextures(1, &name);
+    glBindTexture(GL_TEXTURE_2D, name);
+    int bpp= surface->format->BitsPerPixel;
+    int format= (bpp==8? GL_LUMINANCE: bpp==16? GL_LUMINANCE_ALPHA: bpp==24? GL_RGB: GL_RGBA);
+    int internalformat= (bpp==32? 4: bpp==8? 1: 3);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, surface->w,surface->h, 0,
+				 format, GL_UNSIGNED_BYTE, surface->pixels);
+	if(width) *width= surface->w;
+	if(height) *height= surface->h;
+	SDL_FreeSurface(surface);
+    return name;
+}
+
+
+static GLuint load_texture_mem(const void *src, int memsize, int *width= 0, int *height= 0)
+{
+    SDL_Surface *surface= IMG_Load_RW(SDL_RWFromConstMem(src, memsize), 1);
+    if(!surface) return 0;
+    GLuint name;
+    glGenTextures(1, &name);
+    glBindTexture(GL_TEXTURE_2D, name);
+    int bpp= surface->format->BitsPerPixel;
+    int format= (bpp==8? GL_LUMINANCE: bpp==16? GL_LUMINANCE_ALPHA: bpp==24? GL_RGB: GL_RGBA);
+    int internalformat= (bpp==32? 4: bpp==8? 1: 3);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, surface->w,surface->h, 0,
+				 format, GL_UNSIGNED_BYTE, surface->pixels);
+	if(width) *width= surface->w;
+	if(height) *height= surface->h;
+	SDL_FreeSurface(surface);
+    return name;
+}
+
+
+
 
 static unsigned int mousecursor_gltex;
 
 extern "C"
 void load_cursor()
 {
+	mousecursor_gltex= load_texture_mem(default_cursor_png, default_cursor_png_size, false);
+/*
     FIMEMORY *fimem= FreeImage_OpenMemory((BYTE*)default_cursor_png, default_cursor_png_size);
     FREE_IMAGE_FORMAT fif= FreeImage_GetFileTypeFromMemory(fimem, default_cursor_png_size);
     FIBITMAP *fibitmap= FreeImage_LoadFromMemory(fif, fimem);
@@ -467,6 +511,7 @@ void load_cursor()
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     free(data);
+*/
 }
 
 
@@ -550,36 +595,25 @@ gl_font *font_load_texture(void *buffer, int buffersize, int charheight, short *
 
     f->width= f->height= charheight;
 
-    FIMEMORY *fimem= FreeImage_OpenMemory((BYTE*)buffer, buffersize);
-    FREE_IMAGE_FORMAT fif= FreeImage_GetFileTypeFromMemory(fimem, buffersize);
-    FIBITMAP *fibitmap= FreeImage_LoadFromMemory(fif, fimem);
+    SDL_Surface *surface= IMG_Load_RW(SDL_RWFromConstMem(buffer, buffersize), 1);
+    if(!surface) { printf("couldn't load font texture\n"); return 0; }
 
-    if(FreeImage_GetBPP(fibitmap)!=32)
-    { FIBITMAP *conv= FreeImage_ConvertTo32Bits(fibitmap); FreeImage_Unload(fibitmap); fibitmap= conv; }
+    int bpp= surface->format->BitsPerPixel;
+    if(bpp!=32) { printf("loading font texture: bad BitsPerPixel %d (should be 32)\n", bpp); return 0; }
 
-    f->gl_texwidth= FreeImage_GetWidth(fibitmap);
-    f->gl_texheight= FreeImage_GetHeight(fibitmap);
+    f->gl_texwidth= surface->w;
+    f->gl_texheight= surface->h;
     f->data= (byte*)malloc(f->gl_texwidth*f->gl_texheight*4);
 
-    //~ memcpy(f->data, FreeImage_GetBits(fibitmap), f->gl_texwidth*f->gl_texheight*4);
-    byte *src= (byte*)FreeImage_GetBits(fibitmap)+FreeImage_GetPitch(fibitmap)*(FreeImage_GetHeight(fibitmap)-1);
-    byte *dst= (byte*)f->data;
-    for(int y= FreeImage_GetHeight(fibitmap); y>0; y--)
+    uint8_t *src= (uint8_t *)surface->pixels;
+    uint32_t *dst= (uint32_t *)f->data;
+    for(int y= surface->h; y>0; y--)
     {
-		memcpy(dst, src, FreeImage_GetWidth(fibitmap)*4);
-		dst+= FreeImage_GetWidth(fibitmap)*4;
-		src-= FreeImage_GetPitch(fibitmap);
+		memcpy(dst, src, surface->w*4);
+		dst+= surface->w;
+		src+= surface->pitch;
     }
-
-    FreeImage_Unload(fibitmap);
-    FreeImage_CloseMemory(fimem);
-
-//    for(int i= 0; i<f->gl_texwidth*f->gl_texheight; i++)
-//	{
-//		f->data[i*4+0]= 255-f->data[i*4+0];
-//		f->data[i*4+1]= 255-f->data[i*4+1];
-//		f->data[i*4+2]= 255-f->data[i*4+2];
-//	}
+	SDL_FreeSurface(surface);
 
     int i;
     for(i= 0; i<tablesize; i++)
