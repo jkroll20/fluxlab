@@ -1,6 +1,8 @@
 #ifndef FLUXEFFECTS_H
 #define FLUXEFFECTS_H
 
+#include "fast_teapot.c"
+
 using namespace std;
 
 extern fbo<2, true, GL_RGB, true> gFBO;
@@ -77,7 +79,7 @@ class CgState
 									myCgContext,                /* Cg runtime context */
 									CG_SOURCE,                  /* Program in human-readable form */
 									filename,  					/* Name of file containing program */
-									profile,        			/* Profile: OpenGL ARB vertex program */
+									profile,        			/* Profile */
 									entryFunc,      			/* Entry function name */
 									NULL);                      /* No extra compiler options */
 			if(!checkForCgError("creating program from file")) return false;
@@ -443,15 +445,15 @@ class fluxTeapot: public fluxCgEffect
 	private:
 		GLuint texture;
 		GLUquadric *quadric;
-		CGparameter cgModelProj, cgModelViewProj;
-		CGparameter cgLightModelViewProj;
-		CGparameter cgLightPos;
+		CGparameter cgModelViewMatrix, cgProjectionMatrix;
+		CGparameter cgModelViewProjMatrix;
+		CGparameter cgCamPos;
 		CGparameter cgInvWindowSize;
 		CGparameter cgIntensity;
 
 		void setup()
 		{
-#ifdef FLUXPOT
+#ifdef GLUTPOT
 			int argc= 1;
 			char *argv[]= { (char*)"main", 0 };
 			glutInit(&argc, argv);
@@ -460,25 +462,25 @@ class fluxTeapot: public fluxCgEffect
 			texture= loadTexture("data/mix.png");
 			quadric= gluNewQuadric();
 
-// lighting. unfinished
-//#define L1
-#ifdef L1
-			loadFragmentProgram("cg/teapot.cg", "lighting1");
+#define FRAGTEST1
+#ifdef FRAGTEST1
+			loadFragmentProgram("cg/teapot.cg", "teapotFragTest1");
+			loadVertexProgram("cg/teapot.cg", "teapotVertexProgram2");
 #else
-			loadFragmentProgram("cg/teapot.cg");
-#endif
+			loadFragmentProgram("cg/teapot.cg", "main");
 			loadVertexProgram("cg/teapot.cg", "teapotVertexProgram");
+#endif
 
-			cgModelProj= cgGetNamedParameter(vertProgram, "modelProj");
+			cgModelViewMatrix= cgGetNamedParameter(vertProgram, "modelViewMatri");
 
-			cgModelViewProj= cgGetNamedParameter(vertProgram, "modelViewProj");
-			if(!cgModelViewProj) printf("couldn't find modelViewProj parameter.\n");
+			cgProjectionMatrix= cgGetNamedParameter(vertProgram, "projectionMatrix");
+			if(!cgProjectionMatrix) printf("couldn't find projectionMatrix parameter.\n");
 
-			cgLightModelViewProj= cgGetNamedParameter(vertProgram, "lightModelViewProj");
-			if(!cgLightModelViewProj) printf("couldn't find lightModelViewProj parameter.\n");
+			cgModelViewProjMatrix= cgGetNamedParameter(vertProgram, "modelViewProjMatrix");
+			if(!cgModelViewProjMatrix) printf("couldn't find modelViewProjMatrix parameter.\n");
 
-			cgLightPos= cgGetNamedParameter(vertProgram, "lightPos");
-			if(!cgLightPos) printf("couldn't find lightPos parameter.\n");
+			cgCamPos= cgGetNamedParameter(vertProgram, "camPos");
+			if(!cgCamPos) printf("couldn't find camPos parameter.\n");
 
 			cgInvWindowSize= cgGetNamedParameter(fragProgram, "invWindowSize");
 			if(!cgInvWindowSize) printf("couldn't find invWindowSize parameter.\n");
@@ -491,10 +493,13 @@ class fluxTeapot: public fluxCgEffect
 		{
 			float w= absPos->rgt-absPos->x, h= absPos->btm-absPos->y;
 
+			// draw to fbo texture 1 (extra buffer)
 			gFBO.select_framebuffer_texture(1);
 			glEnable(GL_TEXTURE_2D);
+			// read from fbo texture 0 (default draw buffer)
 			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
 
+			// copy background to fbo texture 1 (extra buffer)
 			glBegin(GL_QUADS);
 			drawRect(*absPos);
 			glEnd();
@@ -504,6 +509,7 @@ class fluxTeapot: public fluxCgEffect
 
 			glEnable(GL_CULL_FACE);
 
+			// set up modelview & projection matrices for teapot
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
 			glLoadIdentity();
@@ -514,28 +520,19 @@ class fluxTeapot: public fluxCgEffect
 			glViewport(absPos->x,absPos->y, w,h);
 			glEnable(GL_DEPTH_TEST);
 
-			glTranslatef(0, -1.2, -5.5);
+			float camPos[3]= { 0, -1.2, -5.5 };
+			glTranslatef(camPos[0], camPos[1], camPos[2]);
 			glRotatef(22.5, 1, 0, 0);
 			glRotatef(-90, 1, 0, 0);
 
 			glPushMatrix();
 
-			float lightPos[3]= { 3,0,3 };
-			glRotatef((gTime-gStartTime)*-100, 0,0,1);
-			cgSetParameter3f(cgLightPos, lightPos[0], lightPos[1], lightPos[2]);
-			cgGLSetStateMatrixParameter(cgLightModelViewProj,
-										CG_GL_MODELVIEW_MATRIX,
-										CG_GL_MATRIX_IDENTITY);
 			cgUpdateProgramParameters(vertProgram);
-			glTranslatef(lightPos[0], lightPos[1], lightPos[2]);
 			cgGLDisableProfile(gCgState.getFragmentProfile());
 			cgGLDisableProfile(gCgState.getVertexProfile());
 			glDisable(GL_TEXTURE_2D);
 			glColor3f(1,1,1);
 			glCullFace(GL_BACK);
-#ifdef L1
-			gluSphere(quadric, .1, 10, 10);
-#endif
 			glEnable(GL_TEXTURE_2D);
 			glLoadIdentity();
 
@@ -552,30 +549,28 @@ class fluxTeapot: public fluxCgEffect
 
 			glCullFace(GL_FRONT);
 
-			cgGLSetStateMatrixParameter(cgModelProj,
-										CG_GL_MODELVIEW_MATRIX,
-										CG_GL_MATRIX_IDENTITY);
-			cgUpdateProgramParameters(vertProgram);
+//			cgGLSetStateMatrixParameter(cgModelViewMatrix,
+//										CG_GL_MODELVIEW_MATRIX,
+//										CG_GL_MATRIX_IDENTITY);
 
-			cgGLSetStateMatrixParameter(cgModelViewProj,
+			cgGLSetStateMatrixParameter(cgProjectionMatrix,
+										CG_GL_PROJECTION_MATRIX,
+										CG_GL_MATRIX_IDENTITY);
+
+			cgGLSetStateMatrixParameter(cgModelViewProjMatrix,
 										CG_GL_MODELVIEW_PROJECTION_MATRIX,
 										CG_GL_MATRIX_IDENTITY);
+
+			cgGLSetParameter3fv(cgCamPos, camPos);
+
 			cgUpdateProgramParameters(vertProgram);
 
-			glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, gFBO.color_textures[0]);
-			glMatrixMode(GL_TEXTURE);
-			glScalef(.125, .125, 1);
-			glMatrixMode(GL_MODELVIEW);
-			glEnable(GL_DITHER);
 #ifdef GLUTPOT
 			glutSolidTeapot(4);
 #else
 			fastTeapot(4);
 #endif
 
-			glMatrixMode(GL_TEXTURE);
-			glLoadIdentity();
 			glDisable(GL_CULL_FACE);
 
 			glMatrixMode(GL_MODELVIEW);
@@ -623,15 +618,17 @@ class fluxBackgroundImage: public fluxCgEffect
 		void setup()
 		{
 			texture1= loadTexture("data/moonrisemk_connelley.png");
-			loadFragmentProgram("cg/colors.cg", "textureUnit1");
 		}
 
 		virtual void paint(primitive *self, rect *absPos, const rectlist *dirtyRects)
 		{
-			glActiveTexture(GL_TEXTURE1);
+			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, texture1);
-			glActiveTexture(GL_TEXTURE0);
-			fluxCgEffect::paint(self, absPos, dirtyRects);
+			glBegin(GL_QUADS);
+			for(const rectlist *r= dirtyRects; r; r= r->next)
+				drawRect(*r->self);
+			glEnd();
+			glDisable(GL_TEXTURE_2D);
 		}
 };
 

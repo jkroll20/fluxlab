@@ -15,7 +15,6 @@
 #include <flux.h>
 #include "fbo.h"
 #include "fbo.h"
-#include "fast_teapot.c"
 #include "fluxeffects.h"
 
 using namespace std;
@@ -71,7 +70,7 @@ GLuint loadTexture(const char *filename, bool mipmapped)
 void setVideoMode(int w, int h)
 {
 	SDL_Init(SDL_INIT_VIDEO);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
+//	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
 	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 0);
 	SDL_SetVideoMode(w, h, 0, SDL_OPENGL|SDL_RESIZABLE); //|SDL_FULLSCREEN);
@@ -355,6 +354,8 @@ int main()
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Shapes", 7),
 		fluxEffectButton(buttonX, buttonY+=buttonH*1.5, buttonW, buttonH, "Groups", 8),
 	};
+
+//	buttons[5].onClick();
 
 	SDL_EnableKeyRepeat(250, 50);
 

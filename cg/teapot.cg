@@ -3,56 +3,95 @@
 
 
 float4 main(uniform float2 invWindowSize,
-			uniform float intensity,
-			float4 normal: TEXCOORD2,
-			float2 wpos: WPOS,
-			sampler2D tex0: TEXUNIT0): COLOR
+            uniform float intensity,
+            float4 normal: TEXCOORD2,
+            float2 wpos: WPOS,
+            sampler2D tex0: TEXUNIT0): COLOR
 {
-	float2 n= float2(normal.x, normal.y-2);
-	float l= length(n)*.1;
-	float4 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity);
-	return texel0 - l*1.25;
+    float2 n= float2(normal.x, normal.y);
+    float l= length(n)*.1;
+    float4 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity) + l*1.25;
+    texel0.a= 1;
+    return texel0;
 }
 
 
 float4 lighting1(uniform float2 invWindowSize,
-				 uniform float intensity,
-				 float3 lightPos: TEXCOORD1,
-				 float3 normal: TEXCOORD2,
-				 float3 objPos: TEXCOORD3,
-				 float2 wpos: WPOS,
-				 sampler2D tex0: TEXUNIT0): COLOR
+                 uniform float intensity,
+                 float3 lightPos: TEXCOORD1,
+                 float3 normal: TEXCOORD2,
+                 float3 objPos: TEXCOORD3,
+                 float2 wpos: WPOS,
+                 sampler2D tex0: TEXUNIT0): COLOR
 {
-	float3 d= objPos-lightPos;
-	float4 v= max(1-length(d)*.3, 0);
-	v.a= 1;
-	float2 n= float2(normal.x, normal.y-2);
-	float l= length(n)*.1;
-	float4 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity);
-	return texel0 + v - l*1.25;
-	return v;
+    float3 d= objPos-lightPos;
+    float4 v= max(1-length(d)*.3, 0);
+    v.a= 1;
+    float2 n= float2(normal.x, normal.y-2);
+    float l= length(n)*.1;
+    float4 texel0= tex2D(tex0, wpos *invWindowSize-n *intensity);
+    return texel0 + v - l*1.25;
+    return v;
 }
 
 
 
 void teapotVertexProgram(float4 position: POSITION,
-						 float4 normal: NORMAL,
-						 float2 texCoord0: TEXCOORD0,
-						 uniform float4x4 modelProj,
-						 uniform float4x4 modelViewProj,
-						 uniform float4x4 lightModelViewProj,
-						 uniform float3 lightPos,
-						 out float4 oPosition: POSITION,
-						 out float2 oTexCoord0: TEXCOORD0,
-						 out float3 oLightPos: TEXCOORD1,
-						 out float3 oNormal: TEXCOORD2,
-						 out float3 objPos: TEXCOORD3)
+                         float4 normal: NORMAL,
+                         float2 texCoord0: TEXCOORD0,
+                         uniform float4x4 modelViewMatrix,
+                         uniform float4x4 projectionMatrix,
+                         uniform float4x4 lightModelViewProj,
+                         uniform float3 lightPos,
+                         out float4 oPosition: POSITION,
+                         out float2 oTexCoord0: TEXCOORD0,
+                         out float3 oLightPos: TEXCOORD1,
+                         out float3 oNormal: TEXCOORD2,
+                         out float3 objPos: TEXCOORD3)
 {
-	oPosition= mul(modelViewProj, position);
-	oTexCoord0= texCoord0;
+    oPosition= mul(projectionMatrix, position);
+    oTexCoord0= texCoord0;
 
-	oNormal= mul(modelViewProj, normal);
+    oNormal= mul(projectionMatrix, normal);
 
-	oLightPos= mul(lightModelViewProj, float4(lightPos, 1));
-	objPos= mul(modelProj, position);
+    oLightPos= mul(lightModelViewProj, float4(lightPos, 1));
+    objPos= mul(modelViewMatrix, position);
+}
+
+
+
+
+float4 teapotFragTest1(uniform float2 invWindowSize,
+                       uniform float intensity,
+                       float4 normal: TEXCOORD2,
+                       float2 wpos: WPOS,
+                       sampler2D tex0: TEXUNIT0): COLOR
+{
+    float2 n= float2(normal.x, normal.y);
+    float l= length(n)*.1;
+    float4 texel0= tex2D(tex0, wpos*invWindowSize-n*intensity) + l*1.25;
+    texel0.a= 1;
+    return texel0;
+}
+
+
+void teapotVertexProgram2(float4 position: POSITION,
+                          float4 normal: NORMAL,
+                          float2 texCoord0: TEXCOORD0,
+                          uniform float4x4 modelViewMatrix,
+                          uniform float4x4 projectionMatrix,
+                          uniform float4x4 modelViewProjMatrix,
+                          uniform float3 camPos,
+                          out float4 oPosition: POSITION,
+                          out float2 oTexCoord0: TEXCOORD0,
+                          out float3 oLightPos: TEXCOORD1,
+                          out float3 oNormal: TEXCOORD2,
+                          out float3 objPos: TEXCOORD3)
+{
+    oPosition= mul(modelViewProjMatrix, position);
+    oTexCoord0= texCoord0;
+
+    oNormal= mul(modelViewProjMatrix, normal) + camPos;
+
+    objPos= mul(modelViewMatrix, position);
 }

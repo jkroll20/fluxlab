@@ -41,7 +41,6 @@
 			<Add library="flux-gl_sdl" />
 			<Add library="GL" />
 			<Add library="SDL" />
-			<Add library="freeimage" />
 			<Add library="GLU" />
 			<Add library="Cg" />
 			<Add library="CgGL" />
