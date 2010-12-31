@@ -12,7 +12,7 @@ extern class fluxEffectWindowContainer gEffectWindows;
 extern int gScreenWidth, gScreenHeight;
 extern float gZoom;
 extern double gTime, gStartTime;
-extern bool gIsMesa;
+extern int gIsMesa;
 extern int gNeedDepthClear;
 
 GLuint loadTexture(const char *filename, bool mipmapped= true);

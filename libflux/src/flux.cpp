@@ -3550,7 +3550,6 @@ static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
     }
 }
 
-//static void prim_redraw(primitive *p, rect *_abspos, rect *upd)
 static void prim_redraw_rectlist(primitive *p, rect *_abspos, rectlist *dirty_list)
 {
 	rect abspos;
@@ -3559,7 +3558,10 @@ static void prim_redraw_rectlist(primitive *p, rect *_abspos, rectlist *dirty_li
 	if(p->callbacks.paint)
         p->callbacks.paint(p->callbacks.paint_arg, p, _abspos, dirty_list);
 	else
-		do { prim_redraw(p, _abspos, dirty_list->self); } while (dirty_list= dirty_list->next);
+		do {
+			prim_redraw(p, _abspos, dirty_list->self);
+//			fill_rect(dirty_list->self, 0xFF0000 | TRANSL_1);
+		} while (dirty_list= dirty_list->next);
 }
 
 void redraw_children(rect *prntrc, window_list *wnd, const rect *rc)

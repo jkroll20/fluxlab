@@ -27,7 +27,8 @@ fluxEffectWindowContainer gEffectWindows;
 int gScreenWidth= 1024, gScreenHeight= 600;
 float gZoom= 1.0;
 double gTime, gStartTime;
-bool gIsMesa= false;
+int gIsMesa= false;
+int gHaveDoubleBuf;
 int gNeedDepthClear= 0;
 
 
@@ -70,15 +71,15 @@ GLuint loadTexture(const char *filename, bool mipmapped)
 void setVideoMode(int w, int h)
 {
 	SDL_Init(SDL_INIT_VIDEO);
-//	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
 	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 0);
 	SDL_SetVideoMode(w, h, 0, SDL_OPENGL|SDL_RESIZABLE); //|SDL_FULLSCREEN);
-	int haveDoubleBuf, depthSize, swapControl;
-	SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &haveDoubleBuf);
+	int depthSize, swapControl;
+	SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &gHaveDoubleBuf);
 	SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depthSize);
 	SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swapControl);
-	printf("Double Buffer: %s Depth Size: %d swap control: %d\n", haveDoubleBuf? "true": "false", depthSize, swapControl);
+	printf("Double Buffer: %s Depth Size: %d swap control: %d\n", gHaveDoubleBuf? "true": "false", depthSize, swapControl);
 	SDL_ShowCursor(false);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -143,6 +144,7 @@ void flux_tick()
 	redraw_rect(&viewport);
 	redraw_cursor();
 	gFBO.disable();
+	glDrawBuffer(GL_FRONT);
 	glDisable(GL_SCISSOR_TEST);
 
     glMatrixMode(GL_PROJECTION);
@@ -163,10 +165,12 @@ void flux_tick()
 	glTexCoord2f(u0,v1); glVertex2f(0, viewport.btm);
 	glEnd();
 
-	char ch[32]; snprintf(ch, 32, "%.2f", avgFPS);
-	draw_text(_font_getloc(FONT_DEFAULT), ch, gScreenWidth-45,gScreenHeight-14, viewport, 0xFFFFFF);
+	char ch[128]; snprintf(ch, sizeof(ch), "%.2f %d", avgFPS, gNeedDepthClear);
+	draw_text(_font_getloc(FONT_DEFAULT), ch, gScreenWidth-55,gScreenHeight-14, viewport, 0xFFFFFF);
 
 	glDisable(GL_TEXTURE_2D);
+
+	glFinish();
 
 	checkglerror();
 
@@ -407,7 +411,8 @@ int main()
 		}
 
 		flux_tick();
-		SDL_GL_SwapBuffers();
+		if(gHaveDoubleBuf)
+			SDL_GL_SwapBuffers();
 
 		double frametime= getTime() - time;
 		double delay= (1.0/100) - frametime;
