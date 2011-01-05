@@ -2,8 +2,12 @@
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
 		<Project filename="libflux/libflux.cbp" />
-		<Project filename="fluxdemo.cbp" active="1">
+		<Project filename="fluxdemo.cbp">
 			<Depends filename="libflux/libflux.cbp" />
+		</Project>
+		<Project filename="../fluxosc/fluxosc.cbp" active="1">
+			<Depends filename="libflux/libflux.cbp" />
+			<Depends filename="fluxdemo.cbp" />
 		</Project>
 	</Workspace>
 </CodeBlocks_workspace_file>

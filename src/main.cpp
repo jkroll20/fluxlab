@@ -208,7 +208,7 @@ void makeShapeWindow(int x, int y, int width, int height)
 			p1.y= p0.y*cos(a)+p0.x*sin(a) + .5;
 			verts[k]= p1;
 		}
-		dword poly= create_poly(wnd, 5000,0, 5000,200, SYSCOL(i-3), ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, true,
+		dword poly= create_poly(wnd, 5000,0, 5000,200, SYSCOL(i-3), ALIGN_LEFT|ALIGN_BOTTOM|WREL|XREL, false,
 								i, verts);
 	}
 }
