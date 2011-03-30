@@ -238,7 +238,7 @@ class fluxEffectWindowContainer
 											const char *cgFilename, const char *entryFunc= "main")
 		{
 			fluxCgEffect *effect= new fluxCgEffect(x,y, width,height);
-//			wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+			wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
 			effect->loadFragmentProgram(cgFilename, entryFunc);
 			effectWindows.push_back(effect);
 			return *effect;
@@ -249,7 +249,7 @@ class fluxEffectWindowContainer
 			if(!title) { title= typeid(*effect).name(); while(*title>='0' && *title<='9' && *title) title++; }
 			if(effect->isToplevelWindow())
 			{
-//				wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
+				wnd_setprop(clone_frame("titleframe", effect->getFluxHandle()), "title", (prop_t)title);
 				wnd_setisize(effect->getFluxHandle(), wnd_getw(effect->getFluxHandle()), wnd_geth(effect->getFluxHandle()));
 			}
 			effectWindows.push_back(effect);
